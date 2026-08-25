@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beggar's Dilemma — Expected Utility Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px; line-height: 1.6; color: #1a1a1a;
+      background: #f5f4f0; min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .card { background: #ffffff; border-radius: 16px; border: 0.5px solid #e0dfd8; padding: 2rem 2.25rem; max-width: 720px; width: 100%; }
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 0.25rem; }
+    .subtitle { font-size: 13px; color: #6b6a64; margin-bottom: 1.75rem; }
+    .tab-bar { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+    .tab { padding: 7px 18px; border-radius: 8px; border: 0.5px solid #c0bfb8; background: transparent; font-size: 14px; cursor: pointer; color: #6b6a64; transition: all 0.15s; font-family: inherit; }
+    .tab.active { background: #f5f4f0; color: #1a1a1a; font-weight: 500; border-color: #9b9a94; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section-label { font-size: 12px; font-weight: 500; color: #6b6a64; text-transform: uppercase; letter-spacing: 0.05em; margin: 1.5rem 0 0.75rem; }
+    .framing { font-size: 13px; color: #6b6a64; line-height: 1.6; margin-bottom: 1.25rem; padding: 10px 14px; background: #f5f4f0; border-radius: 8px; }
+    .ctrl-row { display: flex; align-items: center; gap: 12px; margin-bottom: 0.85rem; }
+    .ctrl-label { font-size: 13px; color: #6b6a64; min-width: 170px; }
+    .ctrl-row input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; background: #e0dfd8; border-radius: 2px; outline: none; }
+    .ctrl-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #1a1a1a; cursor: pointer; }
+    .ctrl-val { font-size: 14px; font-weight: 500; min-width: 90px; text-align: right; }
+    .divider { border: none; border-top: 0.5px solid #e0dfd8; margin: 1.5rem 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 1rem 0; }
+    th { text-align: left; padding: 7px 10px; font-weight: 500; font-size: 12px; color: #6b6a64; border-bottom: 0.5px solid #e0dfd8; }
+    td { padding: 9px 10px; border-bottom: 0.5px solid #e0dfd8; }
+    .total-row td { font-weight: 500; background: #f5f4f0; }
+    .verdict { border-radius: 8px; padding: 11px 16px; font-size: 14px; font-weight: 500; margin: 0.75rem 0 0; text-align: center; }
+    .verdict.keep { background: #EAF3DE; color: #27500A; }
+    .verdict.sell { background: #FCEBEB; color: #791F1F; }
+    .verdict.tie { background: #f5f4f0; color: #6b6a64; }
+    .insight { font-size: 13px; color: #6b6a64; line-height: 1.6; border-left: 2px solid #e0dfd8; padding-left: 12px; margin-top: 0.75rem; }
+    .pascal-tag { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: #E6F1FB; color: #185FA5; display: inline-block; margin-bottom: 6px; }
+    .bern-tag { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: #FAEEDA; color: #854F0B; display: inline-block; margin-bottom: 6px; }
+    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid #e0dfd8; font-size: 12px; color: #9b9a94; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Beggar's dilemma — expected utility calculator</h1>
+  <p class="subtitle">Neuroeconomics AS.080.308 — Week 1</p>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="showPanel('beggar', this)">The beggar</button>
+    <button class="tab" onclick="showPanel('rich', this)">The rich person</button>
+  </div>
+
+  <div id="panel-beggar" class="panel active">
+    <div class="framing">The beggar finds a lottery ticket and must decide: sell it for a certain amount, or keep it and play. Starting wealth ≈ $0.</div>
+
+    <div class="section-label">Parameters</div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Prize if ticket wins</span>
+      <input type="range" min="1000" max="100000" step="1000" value="20000" id="b-prize" oninput="updateBeggar()">
+      <span class="ctrl-val" id="b-prize-out">$20,000</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Win probability</span>
+      <input type="range" min="1" max="99" step="1" value="50" id="b-prob" oninput="updateBeggar()">
+      <span class="ctrl-val" id="b-prob-out">50%</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Offer to buy ticket</span>
+      <input type="range" min="500" max="80000" step="500" value="7000" id="b-offer" oninput="updateBeggar()">
+      <span class="ctrl-val" id="b-offer-out">$7,000</span>
+    </div>
+
+    <hr class="divider">
+    <div class="pascal-tag">Pascal — expected value</div>
+    <table>
+      <thead><tr><th>Option</th><th>Probability</th><th>Value</th><th>Expected value</th></tr></thead>
+      <tbody>
+        <tr><td>Keep ticket — win</td><td id="bp-pw">0.50</td><td id="bp-prize">$20,000</td><td id="bp-wtw">$10,000</td></tr>
+        <tr><td>Keep ticket — lose</td><td id="bp-pl">0.50</td><td>$0</td><td>$0</td></tr>
+        <tr class="total-row"><td colspan="3">EV of keeping ticket</td><td id="bp-ev-keep">$10,000</td></tr>
+        <tr class="total-row"><td colspan="3">EV of selling ticket</td><td id="bp-ev-sell">$7,000</td></tr>
+      </tbody>
+    </table>
+    <div class="verdict tie" id="bp-verdict">—</div>
+
+    <hr class="divider">
+    <div class="bern-tag">Bernoulli — expected utility (log₁₀ of total wealth)</div>
+    <table>
+      <thead><tr><th>Option</th><th>Probability</th><th>Total wealth</th><th>Utility (log₁₀)</th><th>Expected utility</th></tr></thead>
+      <tbody>
+        <tr><td>Keep — win</td><td id="bb-pw">0.50</td><td id="bb-ww">$20,000</td><td id="bb-uw">4.301</td><td id="bb-euw">2.151</td></tr>
+        <tr><td>Keep — lose</td><td id="bb-pl">0.50</td><td>$0</td><td>0 (undefined)</td><td>0</td></tr>
+        <tr class="total-row"><td colspan="4">EU of keeping ticket</td><td id="bb-eu-keep">2.151</td></tr>
+        <tr class="total-row"><td colspan="4">EU of selling ticket (certain offer)</td><td id="bb-eu-sell">3.845</td></tr>
+      </tbody>
+    </table>
+    <div class="verdict tie" id="bb-verdict">—</div>
+    <div class="insight" id="b-insight"></div>
+  </div>
+
+  <div id="panel-rich" class="panel">
+    <div class="framing">The rich person can choose to buy the ticket for a set price, or keep their current wealth intact. The ticket price comes out of their starting wealth if they buy.</div>
+
+    <div class="section-label">Parameters</div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Starting wealth</span>
+      <input type="range" min="100000" max="5000000" step="10000" value="1000000" id="r-wealth" oninput="updateRich()">
+      <span class="ctrl-val" id="r-wealth-out">$1,000,000</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Prize if ticket wins</span>
+      <input type="range" min="1000" max="100000" step="1000" value="20000" id="r-prize" oninput="updateRich()">
+      <span class="ctrl-val" id="r-prize-out">$20,000</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Win probability</span>
+      <input type="range" min="1" max="99" step="1" value="50" id="r-prob" oninput="updateRich()">
+      <span class="ctrl-val" id="r-prob-out">50%</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Ticket price</span>
+      <input type="range" min="500" max="80000" step="500" value="7000" id="r-price" oninput="updateRich()">
+      <span class="ctrl-val" id="r-price-out">$7,000</span>
+    </div>
+
+    <hr class="divider">
+    <div class="pascal-tag">Pascal — expected value</div>
+    <table>
+      <thead><tr><th>Option</th><th>Probability</th><th>Net gain/loss</th><th>Expected value</th></tr></thead>
+      <tbody>
+        <tr><td>Buy ticket — win</td><td id="rp-pw">0.50</td><td id="rp-prize">+$13,000</td><td id="rp-wtw">+$6,500</td></tr>
+        <tr><td>Buy ticket — lose</td><td id="rp-pl">0.50</td><td id="rp-lose-val">−$7,000</td><td id="rp-wtl">−$3,500</td></tr>
+        <tr class="total-row"><td colspan="3">EV of buying ticket</td><td id="rp-ev-buy">+$3,000</td></tr>
+        <tr class="total-row"><td colspan="3">EV of not buying (keep wealth)</td><td>$0 gain/loss</td></tr>
+      </tbody>
+    </table>
+    <div class="verdict tie" id="rp-verdict">—</div>
+
+    <hr class="divider">
+    <div class="bern-tag">Bernoulli — expected utility (log₁₀ of total wealth)</div>
+    <table>
+      <thead><tr><th>Option</th><th>Probability</th><th>Total wealth</th><th>Utility (log₁₀)</th><th>Expected utility</th></tr></thead>
+      <tbody>
+        <tr><td>Buy — win</td><td id="rb-pw">0.50</td><td id="rb-ww">$1,013,000</td><td id="rb-uw">6.006</td><td id="rb-euw">3.003</td></tr>
+        <tr><td>Buy — lose</td><td id="rb-pl">0.50</td><td id="rb-wl">$993,000</td><td id="rb-ul">5.997</td><td id="rb-eul">2.998</td></tr>
+        <tr class="total-row"><td colspan="4">EU of buying ticket</td><td id="rb-eu-buy">6.001</td></tr>
+        <tr class="total-row"><td colspan="4">EU of not buying (keep wealth)</td><td id="rb-eu-keep">6.000</td></tr>
+      </tbody>
+    </table>
+    <div class="verdict tie" id="rb-verdict">—</div>
+    <div class="insight" id="r-insight"></div>
+  </div>
+
+  <div class="footer">Neuroeconomics AS.080.308 &nbsp;·&nbsp; Bernoulli, expected utility &amp; the beggar's dilemma</div>
+</div>
+
+<script>
+function showPanel(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+function fmt$(n) {
+  const abs = '$' + Math.round(Math.abs(n)).toLocaleString();
+  return n < 0 ? '−' + abs : abs;
+}
+function fmtNet(n) {
+  const abs = '$' + Math.round(Math.abs(n)).toLocaleString();
+  return (n >= 0 ? '+' : '−') + abs;
+}
+function fmt3(n) { return n.toFixed(3); }
+function log10(x) { return x > 0 ? Math.log10(x) : 0; }
+function setVerdict(el, keepVal, sellVal, keepMsg, sellMsg) {
+  if (keepVal > sellVal) { el.textContent = keepMsg; el.className = 'verdict keep'; }
+  else if (keepVal < sellVal) { el.textContent = sellMsg; el.className = 'verdict sell'; }
+  else { el.textContent = 'Toss-up'; el.className = 'verdict tie'; }
+}
+
+function updateBeggar() {
+  const prize = +document.getElementById('b-prize').value;
+  const prob  = +document.getElementById('b-prob').value / 100;
+  const offer = +document.getElementById('b-offer').value;
+  document.getElementById('b-prize-out').textContent = fmt$(prize);
+  document.getElementById('b-prob-out').textContent  = Math.round(prob * 100) + '%';
+  document.getElementById('b-offer-out').textContent = fmt$(offer);
+  const evKeep = prob * prize;
+  document.getElementById('bp-pw').textContent      = prob.toFixed(2);
+  document.getElementById('bp-pl').textContent      = (1-prob).toFixed(2);
+  document.getElementById('bp-prize').textContent   = fmt$(prize);
+  document.getElementById('bp-wtw').textContent     = fmt$(prob * prize);
+  document.getElementById('bp-ev-keep').textContent = fmt$(evKeep);
+  document.getElementById('bp-ev-sell').textContent = fmt$(offer);
+  setVerdict(document.getElementById('bp-verdict'), evKeep, offer,
+    'Pascal says: keep the ticket (EV ' + fmt$(evKeep) + ' > ' + fmt$(offer) + ')',
+    'Pascal says: sell the ticket (EV ' + fmt$(evKeep) + ' < ' + fmt$(offer) + ')');
+  const utilWin = log10(prize);
+  const euKeep  = prob * utilWin;
+  const euSell  = log10(offer);
+  document.getElementById('bb-pw').textContent      = prob.toFixed(2);
+  document.getElementById('bb-pl').textContent      = (1-prob).toFixed(2);
+  document.getElementById('bb-ww').textContent      = fmt$(prize);
+  document.getElementById('bb-uw').textContent      = fmt3(utilWin);
+  document.getElementById('bb-euw').textContent     = fmt3(prob * utilWin);
+  document.getElementById('bb-eu-keep').textContent = fmt3(euKeep);
+  document.getElementById('bb-eu-sell').textContent = fmt3(euSell);
+  setVerdict(document.getElementById('bb-verdict'), euKeep, euSell,
+    'Bernoulli says: keep the ticket (EU ' + fmt3(euKeep) + ' > ' + fmt3(euSell) + ')',
+    'Bernoulli says: sell the ticket (EU ' + fmt3(euKeep) + ' < ' + fmt3(euSell) + ')');
+  const pascalKeep = evKeep > offer;
+  const bernKeep   = euKeep > euSell;
+  const ins = document.getElementById('b-insight');
+  if (pascalKeep && !bernKeep) {
+    ins.textContent = 'Pascal and Bernoulli disagree. Pascal ignores the beggar\'s desperate situation — the log transformation reveals that the certain ' + fmt$(offer) + ' is worth far more in subjective utility to someone with nothing.';
+  } else if (!pascalKeep && bernKeep) {
+    ins.textContent = 'Unusually, Bernoulli says keep the ticket even though Pascal doesn\'t. Try adjusting the offer upward.';
+  } else if (pascalKeep && bernKeep) {
+    ins.textContent = 'Both models agree: keep the ticket. Try lowering the prize or raising the offer to find where Bernoulli parts ways with Pascal.';
+  } else {
+    ins.textContent = 'Both models agree: sell the ticket. Try raising the prize or lowering the offer to find where they diverge.';
+  }
+}
+
+function updateRich() {
+  const wealth = +document.getElementById('r-wealth').value;
+  const prize  = +document.getElementById('r-prize').value;
+  const prob   = +document.getElementById('r-prob').value / 100;
+  const price  = +document.getElementById('r-price').value;
+  document.getElementById('r-wealth-out').textContent = fmt$(wealth);
+  document.getElementById('r-prize-out').textContent  = fmt$(prize);
+  document.getElementById('r-prob-out').textContent   = Math.round(prob * 100) + '%';
+  document.getElementById('r-price-out').textContent  = fmt$(price);
+  const netWin  = prize - price;
+  const netLose = -price;
+  const evBuy   = prob * netWin + (1 - prob) * netLose;
+  document.getElementById('rp-pw').textContent       = prob.toFixed(2);
+  document.getElementById('rp-pl').textContent       = (1-prob).toFixed(2);
+  document.getElementById('rp-prize').textContent    = fmtNet(netWin);
+  document.getElementById('rp-lose-val').textContent = fmtNet(netLose);
+  document.getElementById('rp-wtw').textContent      = fmtNet(prob * netWin);
+  document.getElementById('rp-wtl').textContent      = fmtNet((1-prob) * netLose);
+  document.getElementById('rp-ev-buy').textContent   = fmtNet(evBuy);
+  setVerdict(document.getElementById('rp-verdict'), evBuy, 0,
+    'Pascal says: buy the ticket (EV ' + fmtNet(evBuy) + ' > $0)',
+    'Pascal says: don\'t buy (EV ' + fmtNet(evBuy) + ' < $0)');
+  const wealthWin  = wealth - price + prize;
+  const wealthLose = wealth - price;
+  const wealthKeep = wealth;
+  const utilWin  = log10(wealthWin);
+  const utilLose = log10(wealthLose);
+  const utilKeep = log10(wealthKeep);
+  const euBuy    = prob * utilWin + (1-prob) * utilLose;
+  document.getElementById('rb-pw').textContent      = prob.toFixed(2);
+  document.getElementById('rb-pl').textContent      = (1-prob).toFixed(2);
+  document.getElementById('rb-ww').textContent      = fmt$(wealthWin);
+  document.getElementById('rb-wl').textContent      = fmt$(wealthLose);
+  document.getElementById('rb-uw').textContent      = fmt3(utilWin);
+  document.getElementById('rb-ul').textContent      = fmt3(utilLose);
+  document.getElementById('rb-euw').textContent     = fmt3(prob * utilWin);
+  document.getElementById('rb-eul').textContent     = fmt3((1-prob) * utilLose);
+  document.getElementById('rb-eu-buy').textContent  = fmt3(euBuy);
+  document.getElementById('rb-eu-keep').textContent = fmt3(utilKeep);
+  setVerdict(document.getElementById('rb-verdict'), euBuy, utilKeep,
+    'Bernoulli says: buy the ticket (EU ' + fmt3(euBuy) + ' > ' + fmt3(utilKeep) + ')',
+    'Bernoulli says: don\'t buy (EU ' + fmt3(euBuy) + ' < ' + fmt3(utilKeep) + ')');
+  const ins = document.getElementById('r-insight');
+  if (euBuy > utilKeep) {
+    ins.textContent = 'Even after paying ' + fmt$(price) + ' for the ticket, the expected utility of buying (' + fmt3(euBuy) + ') exceeds keeping wealth intact (' + fmt3(utilKeep) + '). The prize is a meaningful proportional gain even from a wealthy starting point.';
+  } else if (euBuy < utilKeep) {
+    ins.textContent = 'The ticket price is too high relative to the prize — the rich person is better off keeping their wealth. Try lowering the ticket price or raising the prize.';
+  } else {
+    ins.textContent = 'Exact toss-up by Bernoulli\'s rule.';
+  }
+}
+
+updateBeggar();
+updateRich();
+</script>
+</body>
+</html>
