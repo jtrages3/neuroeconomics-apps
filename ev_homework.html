@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EV Calculator — Homework</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px; line-height: 1.6; color: #1a1a1a;
+      background: #f5f4f0; min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .card { background: #fff; border-radius: 16px; border: 0.5px solid #e0dfd8; padding: 2rem 2.25rem; max-width: 720px; width: 100%; }
+    h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
+    .subtitle { font-size: 13px; color: #6b6a64; margin-bottom: 1.75rem; }
+    .section { margin: 2rem 0; }
+    .section-num { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #9b9a94; margin-bottom: 0.25rem; }
+    .section-title { font-size: 17px; font-weight: 500; margin-bottom: 0.75rem; }
+    .section-body { font-size: 14px; color: #3a3a36; line-height: 1.7; margin-bottom: 1rem; }
+    .divider { border: none; border-top: 0.5px solid #e0dfd8; margin: 2rem 0; }
+
+    /* Calculator */
+    .ctrl-row { display: flex; align-items: center; gap: 12px; margin-bottom: 0.85rem; }
+    .ctrl-label { font-size: 13px; color: #6b6a64; min-width: 130px; }
+    .ctrl-row input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; background: #e0dfd8; border-radius: 2px; outline: none; }
+    .ctrl-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #1a1a1a; cursor: pointer; }
+    .ctrl-val { font-size: 14px; font-weight: 500; min-width: 60px; text-align: right; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 1rem 0; }
+    th { text-align: left; padding: 7px 10px; font-weight: 500; font-size: 12px; color: #6b6a64; border-bottom: 0.5px solid #e0dfd8; }
+    td { padding: 9px 10px; border-bottom: 0.5px solid #e0dfd8; }
+    .total-row td { font-weight: 500; background: #f5f4f0; }
+    .verdict { border-radius: 8px; padding: 11px 16px; font-size: 14px; font-weight: 500; margin: 0.75rem 0; text-align: center; }
+    .verdict.buy { background: #EAF3DE; color: #27500A; }
+    .verdict.pass { background: #FCEBEB; color: #791F1F; }
+    .verdict.neutral { background: #f5f4f0; color: #6b6a64; }
+
+    /* Questions */
+    .question { margin-bottom: 1.5rem; }
+    .question label { font-size: 14px; font-weight: 500; display: block; margin-bottom: 0.5rem; }
+    .question textarea {
+      width: 100%; border: 0.5px solid #c0bfb8; border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; font-family: inherit;
+      resize: vertical; min-height: 80px; outline: none;
+      transition: border-color 0.15s;
+    }
+    .question textarea:focus { border-color: #9b9a94; }
+
+    /* Likert */
+    .likert-group { margin-bottom: 1.5rem; }
+    .likert-label { font-size: 14px; font-weight: 500; margin-bottom: 0.6rem; display: block; }
+    .likert-scale { display: flex; gap: 8px; flex-wrap: wrap; }
+    .likert-scale input[type=radio] { display: none; }
+    .likert-scale label {
+      flex: 1; min-width: 44px; text-align: center;
+      padding: 8px 4px; border: 0.5px solid #c0bfb8;
+      border-radius: 8px; font-size: 13px; cursor: pointer;
+      transition: all 0.15s; color: #3a3a36; background: #fff;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .likert-scale input[type=radio]:checked + label {
+      background: #1a1a1a; color: #fff; border-color: #1a1a1a;
+    }
+    .likert-scale label .num { font-weight: 600; font-size: 15px; }
+    .likert-scale label .anchor { font-size: 10px; color: inherit; opacity: 0.7; }
+    .likert-endpoints { display: flex; justify-content: space-between; font-size: 11px; color: #9b9a94; margin-top: 4px; }
+
+    /* Submit */
+    .submit-btn {
+      display: block; width: 100%; padding: 12px;
+      background: #1a1a1a; color: #fff; border: none;
+      border-radius: 10px; font-size: 15px; font-weight: 500;
+      cursor: pointer; margin-top: 1.5rem; font-family: inherit;
+      transition: background 0.15s;
+    }
+    .submit-btn:hover { background: #3a3a36; }
+    .success { display: none; background: #EAF3DE; color: #27500A; border-radius: 10px; padding: 16px; text-align: center; font-size: 14px; font-weight: 500; margin-top: 1rem; }
+    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid #e0dfd8; font-size: 12px; color: #9b9a94; text-align: center; }
+
+    .highlight-box { background: #f5f4f0; border-radius: 10px; padding: 1rem 1.25rem; margin: 1rem 0; font-size: 14px; color: #3a3a36; }
+    .highlight-box strong { color: #1a1a1a; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Expected Value — Homework</h1>
+  <p class="subtitle">Neuroeconomics AS.080.308 &nbsp;·&nbsp; Week 1</p>
+
+  <div class="section">
+    <div class="section-num">Overview</div>
+    <div class="section-title">Using the EV Calculator</div>
+    <div class="section-body">
+      In class we introduced Pascal's expected value framework. Use the calculator below to explore how changing the prize, probability, and ticket price affects the EV-maximizing decision. Then answer the three questions that follow.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- CALCULATOR -->
+  <div class="section">
+    <div class="section-num">The tool</div>
+    <div class="section-title">Pascal's Expected Value Calculator</div>
+    <div class="section-body">Adjust the sliders and watch the decision update in real time.</div>
+
+    <div class="ctrl-row">
+      <span class="ctrl-label">Ticket price</span>
+      <input type="range" min="1" max="200" step="1" value="45" id="price" oninput="updateCalc()">
+      <span class="ctrl-val" id="price-out">$45</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Prize if you win</span>
+      <input type="range" min="1" max="500" step="1" value="100" id="prize" oninput="updateCalc()">
+      <span class="ctrl-val" id="prize-out">$100</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Win probability</span>
+      <input type="range" min="1" max="99" step="1" value="50" id="prob" oninput="updateCalc()">
+      <span class="ctrl-val" id="prob-out">50%</span>
+    </div>
+
+    <table>
+      <thead><tr><th>Option</th><th>Outcome</th><th>Probability</th><th>Expected value</th></tr></thead>
+      <tbody>
+        <tr>
+          <td rowspan="2" style="font-weight:500;vertical-align:top;padding-top:12px;">Buy ticket</td>
+          <td>Win prize</td><td id="t-pw">0.50</td><td id="t-ew">$50.00</td>
+        </tr>
+        <tr><td>Win nothing</td><td id="t-pl">0.50</td><td>$0.00</td></tr>
+        <tr class="total-row"><td colspan="3">EV of buying the ticket</td><td id="t-ev">$50.00</td></tr>
+        <tr class="total-row"><td colspan="3">EV of walking away</td><td id="t-walk">$45.00</td></tr>
+      </tbody>
+    </table>
+    <div class="verdict neutral" id="verdict">—</div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- QUESTIONS -->
+  <div class="section">
+    <div class="section-num">Part 1 — Explore</div>
+    <div class="section-title">Three things to try</div>
+
+    <div class="highlight-box">
+      <strong>Task A.</strong> Set the ticket price to <strong>$50</strong>, the prize to <strong>$100</strong>, and the probability to <strong>50%</strong>. What does Pascal's rule say? Does this feel right to you? Why or why not?
+    </div>
+    <div class="question">
+      <label for="q1">Your answer to Task A:</label>
+      <textarea id="q1" placeholder="Type your response here..."></textarea>
+    </div>
+
+    <div class="highlight-box">
+      <strong>Task B.</strong> Find a combination of price, prize, and probability where the EV of the ticket is positive but you personally would <em>not</em> buy it. Describe the numbers you chose and explain why you would pass.
+    </div>
+    <div class="question">
+      <label for="q2">Your answer to Task B (include the numbers you chose):</label>
+      <textarea id="q2" placeholder="Price: $__ Prize: $__ Probability: __% — My reasoning: ..."></textarea>
+    </div>
+
+    <div class="highlight-box">
+      <strong>Task C.</strong> Pascal's model ignores your current wealth and your feelings about risk. Based on what you observed in the calculator, describe one situation where you think Pascal's rule gives good advice and one situation where it seems to break down.
+    </div>
+    <div class="question">
+      <label for="q3">Your answer to Task C:</label>
+      <textarea id="q3" placeholder="Good advice when... Breaks down when..."></textarea>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- FEEDBACK -->
+  <div class="section">
+    <div class="section-num">Part 2 — Feedback</div>
+    <div class="section-title">Tell us what you think</div>
+    <div class="section-body">Your feedback helps improve these tools for future students. Please rate each item honestly.</div>
+
+    <div class="likert-group">
+      <span class="likert-label">1. The calculator helped me understand expected value better.</span>
+      <div class="likert-scale">
+        <input type="radio" name="l1" id="l1_1" value="1"><label for="l1_1"><span class="num">1</span></label>
+        <input type="radio" name="l1" id="l1_2" value="2"><label for="l1_2"><span class="num">2</span></label>
+        <input type="radio" name="l1" id="l1_3" value="3"><label for="l1_3"><span class="num">3</span></label>
+        <input type="radio" name="l1" id="l1_4" value="4"><label for="l1_4"><span class="num">4</span></label>
+        <input type="radio" name="l1" id="l1_5" value="5"><label for="l1_5"><span class="num">5</span></label>
+      </div>
+      <div class="likert-endpoints"><span>Strongly disagree</span><span>Strongly agree</span></div>
+    </div>
+
+    <div class="likert-group">
+      <span class="likert-label">2. The calculator was easy to use.</span>
+      <div class="likert-scale">
+        <input type="radio" name="l2" id="l2_1" value="1"><label for="l2_1"><span class="num">1</span></label>
+        <input type="radio" name="l2" id="l2_2" value="2"><label for="l2_2"><span class="num">2</span></label>
+        <input type="radio" name="l2" id="l2_3" value="3"><label for="l2_3"><span class="num">3</span></label>
+        <input type="radio" name="l2" id="l2_4" value="4"><label for="l2_4"><span class="num">4</span></label>
+        <input type="radio" name="l2" id="l2_5" value="5"><label for="l2_5"><span class="num">5</span></label>
+      </div>
+      <div class="likert-endpoints"><span>Strongly disagree</span><span>Strongly agree</span></div>
+    </div>
+
+    <div class="likert-group">
+      <span class="likert-label">3. I would find more tools like this useful in this course.</span>
+      <div class="likert-scale">
+        <input type="radio" name="l3" id="l3_1" value="1"><label for="l3_1"><span class="num">1</span></label>
+        <input type="radio" name="l3" id="l3_2" value="2"><label for="l3_2"><span class="num">2</span></label>
+        <input type="radio" name="l3" id="l3_3" value="3"><label for="l3_3"><span class="num">3</span></label>
+        <input type="radio" name="l3" id="l3_4" value="4"><label for="l3_4"><span class="num">4</span></label>
+        <input type="radio" name="l3" id="l3_5" value="5"><label for="l3_5"><span class="num">5</span></label>
+      </div>
+      <div class="likert-endpoints"><span>Strongly disagree</span><span>Strongly agree</span></div>
+    </div>
+
+    <div class="likert-group">
+      <span class="likert-label">4. Overall, how would you rate this homework activity?</span>
+      <div class="likert-scale">
+        <input type="radio" name="l4" id="l4_1" value="1"><label for="l4_1"><span class="num">1</span></label>
+        <input type="radio" name="l4" id="l4_2" value="2"><label for="l4_2"><span class="num">2</span></label>
+        <input type="radio" name="l4" id="l4_3" value="3"><label for="l4_3"><span class="num">3</span></label>
+        <input type="radio" name="l4" id="l4_4" value="4"><label for="l4_4"><span class="num">4</span></label>
+        <input type="radio" name="l4" id="l4_5" value="5"><label for="l4_5"><span class="num">5</span></label>
+      </div>
+      <div class="likert-endpoints"><span>Poor</span><span>Excellent</span></div>
+    </div>
+
+    <div class="question">
+      <label for="q4">Any other comments or suggestions? (optional)</label>
+      <textarea id="q4" placeholder="What worked well? What could be improved?"></textarea>
+    </div>
+
+    <button class="submit-btn" onclick="handleSubmit()">Submit homework</button>
+    <div class="success" id="success">
+      ✓ Thanks! Your responses have been recorded. You can now close this page.
+    </div>
+  </div>
+
+  <div class="footer">Neuroeconomics AS.080.308 &nbsp;·&nbsp; Expected value &amp; decision making under risk</div>
+</div>
+
+<script>
+  function updateCalc() {
+    const price = +document.getElementById('price').value;
+    const prize = +document.getElementById('prize').value;
+    const prob  = +document.getElementById('prob').value / 100;
+
+    document.getElementById('price-out').textContent = '$' + price;
+    document.getElementById('prize-out').textContent = '$' + prize;
+    document.getElementById('prob-out').textContent  = Math.round(prob * 100) + '%';
+
+    const evTicket = prob * prize;
+    const evWalk   = price;
+
+    document.getElementById('t-pw').textContent   = prob.toFixed(2);
+    document.getElementById('t-pl').textContent   = (1 - prob).toFixed(2);
+    document.getElementById('t-ew').textContent   = '$' + evTicket.toFixed(2);
+    document.getElementById('t-ev').textContent   = '$' + evTicket.toFixed(2);
+    document.getElementById('t-walk').textContent = '$' + evWalk.toFixed(2);
+
+    const v = document.getElementById('verdict');
+    if (evTicket > evWalk) {
+      v.textContent = 'Pascal says: buy the ticket (EV $' + evTicket.toFixed(2) + ' > $' + evWalk.toFixed(2) + ')';
+      v.className = 'verdict buy';
+    } else if (evTicket < evWalk) {
+      v.textContent = 'Pascal says: walk away (EV $' + evTicket.toFixed(2) + ' < $' + evWalk.toFixed(2) + ')';
+      v.className = 'verdict pass';
+    } else {
+      v.textContent = 'Toss-up — both options have equal expected value';
+      v.className = 'verdict neutral';
+    }
+  }
+
+  function handleSubmit() {
+    const q1 = document.getElementById('q1').value.trim();
+    const q2 = document.getElementById('q2').value.trim();
+    const q3 = document.getElementById('q3').value.trim();
+
+    if (!q1 || !q2 || !q3) {
+      alert('Please complete all three written questions before submitting.');
+      return;
+    }
+
+    const likerts = ['l1','l2','l3','l4'];
+    for (const l of likerts) {
+      if (!document.querySelector('input[name="' + l + '"]:checked')) {
+        alert('Please complete all four rating questions before submitting.');
+        return;
+      }
+    }
+
+    document.getElementById('success').style.display = 'block';
+    document.querySelector('.submit-btn').disabled = true;
+    document.querySelector('.submit-btn').style.opacity = '0.5';
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }
+
+  updateCalc();
+</script>
+</body>
+</html>
