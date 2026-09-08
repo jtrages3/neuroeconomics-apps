@@ -94,7 +94,7 @@
         <tr><td>Keep — win</td><td id="bb-pw">0.50</td><td id="bb-ww">$20,000</td><td id="bb-uw">4.301</td><td id="bb-euw">2.151</td></tr>
         <tr><td>Keep — lose</td><td id="bb-pl">0.50</td><td>$0</td><td>0 (undefined)</td><td>0</td></tr>
         <tr class="total-row"><td colspan="4">EU of keeping ticket</td><td id="bb-eu-keep">2.151</td></tr>
-        <tr class="total-row"><td colspan="4">EU of selling ticket (certain offer)</td><td id="bb-eu-sell">3.845</td></tr>
+        <tr class="total-row"><td colspan="4">EU of selling ticket</td><td id="bb-eu-sell">3.845</td></tr>
       </tbody>
     </table>
     <div class="verdict tie" id="bb-verdict">—</div>
@@ -102,7 +102,7 @@
   </div>
 
   <div id="panel-rich" class="panel">
-    <div class="framing">The rich person can choose to buy the ticket for a set price, or keep their current wealth intact. The ticket price comes out of their starting wealth if they buy.</div>
+    <div class="framing">The rich person can choose to buy the ticket for a set price, or keep their current wealth intact.</div>
 
     <div class="section-label">Parameters</div>
     <div class="ctrl-row">
@@ -129,15 +129,16 @@
     <hr class="divider">
     <div class="pascal-tag">Pascal — expected value</div>
     <table>
-      <thead><tr><th>Option</th><th>Probability</th><th>Net gain/loss</th><th>Expected value</th></tr></thead>
+      <thead><tr><th>Option</th><th>Probability</th><th>Value</th><th>Expected value</th></tr></thead>
       <tbody>
-        <tr><td>Buy ticket — win</td><td id="rp-pw">0.50</td><td id="rp-prize">+$13,000</td><td id="rp-wtw">+$6,500</td></tr>
-        <tr><td>Buy ticket — lose</td><td id="rp-pl">0.50</td><td id="rp-lose-val">−$7,000</td><td id="rp-wtl">−$3,500</td></tr>
-        <tr class="total-row"><td colspan="3">EV of buying ticket</td><td id="rp-ev-buy">+$3,000</td></tr>
-        <tr class="total-row"><td colspan="3">EV of not buying (keep wealth)</td><td>$0 gain/loss</td></tr>
+        <tr><td>Buy ticket — win</td><td id="rp-pw">0.50</td><td id="rp-prize">$20,000</td><td id="rp-wtw">$10,000</td></tr>
+        <tr><td>Buy ticket — lose</td><td id="rp-pl">0.50</td><td>$0</td><td>$0</td></tr>
+        <tr class="total-row"><td colspan="3">EV of buying ticket</td><td id="rp-ev-buy">$10,000</td></tr>
+        <tr class="total-row"><td colspan="3">EV of not buying (price)</td><td id="rp-ev-price">$7,000</td></tr>
       </tbody>
     </table>
     <div class="verdict tie" id="rp-verdict">—</div>
+    <div class="insight" style="margin-top:0.5rem;">Notice: Pascal's comparison here is identical in structure to the beggar's — EV(prize) vs. price. Pascal never looks at the rich person's wealth at all.</div>
 
     <hr class="divider">
     <div class="bern-tag">Bernoulli — expected utility (log₁₀ of total wealth)</div>
@@ -147,7 +148,8 @@
         <tr><td>Buy — win</td><td id="rb-pw">0.50</td><td id="rb-ww">$1,013,000</td><td id="rb-uw">6.006</td><td id="rb-euw">3.003</td></tr>
         <tr><td>Buy — lose</td><td id="rb-pl">0.50</td><td id="rb-wl">$993,000</td><td id="rb-ul">5.997</td><td id="rb-eul">2.998</td></tr>
         <tr class="total-row"><td colspan="4">EU of buying ticket</td><td id="rb-eu-buy">6.001</td></tr>
-        <tr class="total-row"><td colspan="4">EU of not buying (keep wealth)</td><td id="rb-eu-keep">6.000</td></tr>
+        <tr class="total-row"><td colspan="4">EU of not buying</td><td id="rb-eu-keep">6.000</td></tr>
+        <tr class="total-row"><td colspan="4">Difference (buy − don't buy)</td><td id="rb-eu-diff">+0.00100</td></tr>
       </tbody>
     </table>
     <div class="verdict tie" id="rb-verdict">—</div>
@@ -167,10 +169,6 @@ function showPanel(id, btn) {
 function fmt$(n) {
   const abs = '$' + Math.round(Math.abs(n)).toLocaleString();
   return n < 0 ? '−' + abs : abs;
-}
-function fmtNet(n) {
-  const abs = '$' + Math.round(Math.abs(n)).toLocaleString();
-  return (n >= 0 ? '+' : '−') + abs;
 }
 function fmt3(n) { return n.toFixed(3); }
 function log10(x) { return x > 0 ? Math.log10(x) : 0; }
@@ -197,6 +195,7 @@ function updateBeggar() {
   setVerdict(document.getElementById('bp-verdict'), evKeep, offer,
     'Pascal says: keep the ticket (EV ' + fmt$(evKeep) + ' > ' + fmt$(offer) + ')',
     'Pascal says: sell the ticket (EV ' + fmt$(evKeep) + ' < ' + fmt$(offer) + ')');
+
   const utilWin = log10(prize);
   const euKeep  = prob * utilWin;
   const euSell  = log10(offer);
@@ -210,15 +209,16 @@ function updateBeggar() {
   setVerdict(document.getElementById('bb-verdict'), euKeep, euSell,
     'Bernoulli says: keep the ticket (EU ' + fmt3(euKeep) + ' > ' + fmt3(euSell) + ')',
     'Bernoulli says: sell the ticket (EU ' + fmt3(euKeep) + ' < ' + fmt3(euSell) + ')');
+
+  const ins = document.getElementById('b-insight');
   const pascalKeep = evKeep > offer;
   const bernKeep   = euKeep > euSell;
-  const ins = document.getElementById('b-insight');
   if (pascalKeep && !bernKeep) {
     ins.textContent = 'Pascal and Bernoulli disagree. Pascal ignores the beggar\'s desperate situation — the log transformation reveals that the certain ' + fmt$(offer) + ' is worth far more in subjective utility to someone with nothing.';
   } else if (!pascalKeep && bernKeep) {
     ins.textContent = 'Unusually, Bernoulli says keep the ticket even though Pascal doesn\'t. Try adjusting the offer upward.';
   } else if (pascalKeep && bernKeep) {
-    ins.textContent = 'Both models agree: keep the ticket. Try lowering the prize or raising the offer to find where Bernoulli parts ways with Pascal.';
+    ins.textContent = 'Both models agree: keep the ticket. Try raising the offer to find where Bernoulli parts ways with Pascal.';
   } else {
     ins.textContent = 'Both models agree: sell the ticket. Try raising the prize or lowering the offer to find where they diverge.';
   }
@@ -233,19 +233,20 @@ function updateRich() {
   document.getElementById('r-prize-out').textContent  = fmt$(prize);
   document.getElementById('r-prob-out').textContent   = Math.round(prob * 100) + '%';
   document.getElementById('r-price-out').textContent  = fmt$(price);
-  const netWin  = prize - price;
-  const netLose = -price;
-  const evBuy   = prob * netWin + (1 - prob) * netLose;
+
+  /* Pascal: identical structure to the beggar. EV(prize) vs price. Wealth never enters. */
+  const evBuy = prob * prize;
   document.getElementById('rp-pw').textContent       = prob.toFixed(2);
   document.getElementById('rp-pl').textContent       = (1-prob).toFixed(2);
-  document.getElementById('rp-prize').textContent    = fmtNet(netWin);
-  document.getElementById('rp-lose-val').textContent = fmtNet(netLose);
-  document.getElementById('rp-wtw').textContent      = fmtNet(prob * netWin);
-  document.getElementById('rp-wtl').textContent      = fmtNet((1-prob) * netLose);
-  document.getElementById('rp-ev-buy').textContent   = fmtNet(evBuy);
-  setVerdict(document.getElementById('rp-verdict'), evBuy, 0,
-    'Pascal says: buy the ticket (EV ' + fmtNet(evBuy) + ' > $0)',
-    'Pascal says: don\'t buy (EV ' + fmtNet(evBuy) + ' < $0)');
+  document.getElementById('rp-prize').textContent    = fmt$(prize);
+  document.getElementById('rp-wtw').textContent      = fmt$(prob * prize);
+  document.getElementById('rp-ev-buy').textContent   = fmt$(evBuy);
+  document.getElementById('rp-ev-price').textContent = fmt$(price);
+  setVerdict(document.getElementById('rp-verdict'), evBuy, price,
+    'Pascal says: buy the ticket (EV ' + fmt$(evBuy) + ' > ' + fmt$(price) + ')',
+    'Pascal says: don\'t buy (EV ' + fmt$(evBuy) + ' < ' + fmt$(price) + ')');
+
+  /* Bernoulli: tracks total wealth, so the price paid matters relative to starting wealth */
   const wealthWin  = wealth - price + prize;
   const wealthLose = wealth - price;
   const wealthKeep = wealth;
@@ -263,16 +264,26 @@ function updateRich() {
   document.getElementById('rb-eul').textContent     = fmt3((1-prob) * utilLose);
   document.getElementById('rb-eu-buy').textContent  = fmt3(euBuy);
   document.getElementById('rb-eu-keep').textContent = fmt3(utilKeep);
+  const diff = euBuy - utilKeep;
+  document.getElementById('rb-eu-diff').textContent = (diff >= 0 ? '+' : '−') + Math.abs(diff).toFixed(5);
   setVerdict(document.getElementById('rb-verdict'), euBuy, utilKeep,
     'Bernoulli says: buy the ticket (EU ' + fmt3(euBuy) + ' > ' + fmt3(utilKeep) + ')',
     'Bernoulli says: don\'t buy (EU ' + fmt3(euBuy) + ' < ' + fmt3(utilKeep) + ')');
+
   const ins = document.getElementById('r-insight');
+  const closeCall = Math.abs(diff) < 0.001;
   if (euBuy > utilKeep) {
-    ins.textContent = 'Even after paying ' + fmt$(price) + ' for the ticket, the expected utility of buying (' + fmt3(euBuy) + ') exceeds keeping wealth intact (' + fmt3(utilKeep) + '). The prize is a meaningful proportional gain even from a wealthy starting point.';
-  } else if (euBuy < utilKeep) {
-    ins.textContent = 'The ticket price is too high relative to the prize — the rich person is better off keeping their wealth. Try lowering the ticket price or raising the prize.';
+    if (closeCall) {
+      ins.textContent = 'Bernoulli says buy, but only barely — look at the "Difference" row above. The two options are nearly tied, which is very different from Pascal\'s comparison below.';
+    } else {
+      ins.textContent = 'Even after paying ' + fmt$(price) + ', the expected utility of buying (' + fmt3(euBuy) + ') exceeds keeping wealth intact (' + fmt3(utilKeep) + '). But notice how small the gap is compared to the beggar\'s case — the same $' + prize.toLocaleString() + ' prize barely moves the needle when you already have ' + fmt$(wealth) + '.';
+    }
   } else {
-    ins.textContent = 'Exact toss-up by Bernoulli\'s rule.';
+    if (closeCall) {
+      ins.textContent = 'Bernoulli says don\'t buy, but only barely — check the "Difference" row above. The rounded EU values in the table look identical, but the difference is real, just small.';
+    } else {
+      ins.textContent = 'The ticket price is too high relative to the prize — the rich person is better off keeping their wealth intact.';
+    }
   }
 }
 
