@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TDRL & Blocking Simulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #1c2128;
+  --border:    #30363d;
+  --border2:   #21262d;
+  --text:      #e6edf3;
+  --muted:     #7d8590;
+  --label:     #8b949e;
+
+  --da:        #58a6ff;   /* dopamine blue */
+  --pe-pos:    #3fb950;   /* positive PE green */
+  --pe-neg:    #f85149;   /* negative PE red */
+  --pe-zero:   #6e7681;   /* zero PE gray */
+  --cue-a:     #d2a8ff;   /* cue A purple */
+  --cue-b:     #ffa657;   /* cue B orange */
+  --reward:    #f0c040;   /* reward gold */
+  --opto:      #39d0d8;   /* optogenetics cyan */
+  --v-fill:    #1f6feb;   /* V(St) fill */
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 300;
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* ── TOP HEADER ── */
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 1.2rem;
+}
+
+.app-header h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--da);
+  letter-spacing: 0.02em;
+}
+
+.app-header p {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ── TAB NAV ── */
+.tab-nav {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
+  gap: 0;
+}
+
+.tab-btn {
+  padding: 0.65rem 1.2rem;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.01em;
+}
+
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--da); border-bottom-color: var(--da); font-weight: 500; }
+
+/* ── PANELS ── */
+.panel { display: none; padding: 1.25rem 1.5rem 2rem; }
+.panel.active { display: block; }
+
+/* ── SHARED LAYOUT ── */
+.two-col {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.controls-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.9rem;
+}
+
+.card-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+/* ── SLIDERS ── */
+.slider-row { margin-bottom: 0.65rem; }
+.slider-row:last-child { margin-bottom: 0; }
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--label);
+}
+.slider-label .val {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%; height: 3px;
+  background: var(--border);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--da);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+
+/* ── BUTTONS ── */
+.btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.btn {
+  padding: 0.45rem 0.85rem;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.btn:hover { background: var(--border2); border-color: var(--label); }
+.btn.primary { background: var(--da); color: var(--bg); border-color: var(--da); }
+.btn.primary:hover { opacity: 0.85; }
+.btn.danger { background: var(--pe-neg); color: white; border-color: var(--pe-neg); }
+.btn.opto { background: var(--opto); color: var(--bg); border-color: var(--opto); }
+.btn.opto:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── TIMELINE GRID ── */
+.timeline-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.timeline-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.85rem;
+}
+
+.tl-grid {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.tl-row {
+  display: grid;
+  grid-template-columns: 80px repeat(10, 1fr);
+  gap: 3px;
+  align-items: center;
+}
+
+.tl-row-label {
+  font-size: 0.72rem;
+  color: var(--label);
+  text-align: right;
+  padding-right: 0.6rem;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.tl-cell {
+  height: 32px;
+  border-radius: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  transition: background 0.2s, border-color 0.2s;
+  position: relative;
+}
+
+.tl-cell.moment-label {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.68rem;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+/* bar inside cell for V and PE */
+.tl-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  border-radius: 0 0 3px 3px;
+  transition: height 0.3s;
+}
+
+.tl-cell .cell-val {
+  position: relative;
+  z-index: 1;
+  font-size: 0.67rem;
+}
+
+/* ── STATUS BAR ── */
+.status-bar {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.55rem 0.8rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--da);
+  min-height: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ── BLOCKING PANEL ── */
+.cue-tag {
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.cue-tag.a { background: rgba(210,168,255,0.15); color: var(--cue-a); }
+.cue-tag.b { background: rgba(255,166,87,0.15); color: var(--cue-b); }
+.cue-tag.r { background: rgba(240,192,64,0.15); color: var(--reward); }
+.cue-tag.none { background: var(--surface2); color: var(--muted); }
+
+.arrow { color: var(--muted); font-size: 0.75rem; }
+
+/* ── OPTO TOGGLE (whole box is a <label>, so any click toggles exactly once) ── */
+.opto-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(57,208,216,0.06);
+  border: 1px solid rgba(57,208,216,0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.opto-toggle:hover { background: rgba(57,208,216,0.1); }
+.opto-toggle input { accent-color: var(--opto); cursor: pointer; }
+.opto-main {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--opto);
+  font-weight: 500;
+}
+.opto-toggle .opto-sub {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.info-box {
+  padding: 0.6rem 0.8rem;
+  background: rgba(88,166,255,0.06);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: 4px;
+  font-size: 0.76rem;
+  color: var(--label);
+  line-height: 1.5;
+}
+
+.info-box strong { color: var(--text); font-weight: 500; }
+
+/* ── FOUR LIVE BARS ── */
+.bar-chart-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bar-chart-item-label {
+  font-size: 0.72rem;
+  color: var(--label);
+  text-align: center;
+  line-height: 1.4;
+  min-height: 2.4em;
+}
+
+.bar-chart-item-label span {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.bar-chart-item-track {
+  width: 100%;
+  height: 120px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.bar-chart-item-fill {
+  width: 100%;
+  height: 0%;
+  border-radius: 3px 3px 0 0;
+  transition: height 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+.bar-chart-item-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ── STAGE PANELS ── */
+.stage-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.9rem;
+  transition: opacity 0.3s;
+}
+
+.stage-panel-dim { opacity: 0.45; pointer-events: none; }
+
+.stage-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stage-panel-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--da);
+  flex-shrink: 0;
+}
+
+.stage-panel-desc {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.stage-panel-status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.stage-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.stage-chart-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 0.6rem 0.6rem 0.4rem;
+}
+
+.stage-chart-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-bottom: 0.15rem;
+}
+
+.chart-legend {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+  min-height: 1em;
+}
+
+.stage-chart-wrap canvas { width: 100%; display: block; }
+
+@media (max-width: 700px) {
+  .two-col { grid-template-columns: 1fr; }
+  .stage-charts { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>TDRL &amp; Blocking Simulator</h1>
+  <p>Dopamine, prediction errors, and reinforcement learning — AS.080.308</p>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('tdrl', this)">TDRL Step-by-Step</button>
+  <button class="tab-btn" onclick="switchTab('blocking', this)">Blocking Experiment</button>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- TAB 1: TDRL                             -->
+<!-- ════════════════════════════════════════ -->
+<div id="panel-tdrl" class="panel active">
+  <div class="two-col">
+
+    <!-- Controls -->
+    <div class="controls-col">
+
+      <div class="card">
+        <div class="card-title">Parameters</div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>Learning rate (α)</span>
+            <span class="val" id="alpha-val">0.50</span>
+          </div>
+          <input type="range" id="alpha-sl" min="0.05" max="1.0" step="0.05" value="0.5"
+            oninput="updateParam('alpha', this.value)">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>Discount (γ)</span>
+            <span class="val" id="gamma-val">1.00</span>
+          </div>
+          <input type="range" id="gamma-sl" min="0.5" max="1.0" step="0.05" value="1.0"
+            oninput="updateParam('gamma', this.value)">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>Reward magnitude (r)</span>
+            <span class="val" id="reward-val">4.0</span>
+          </div>
+          <input type="range" id="reward-sl" min="0" max="10" step="0.5" value="4"
+            oninput="updateParam('reward', this.value)">
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>Reward probability (p)</span>
+            <span class="val" id="prob-val">1.00</span>
+          </div>
+          <input type="range" id="prob-sl" min="0" max="1" step="0.05" value="1"
+            oninput="updateParam('prob', this.value)">
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--label);margin-top:0.6rem">
+          Expected reward p·r = <span id="ev-val" style="color:var(--reward)">4.00</span>
+        </div>
+        <div style="font-size:0.68rem;color:var(--muted);margin-top:0.5rem;line-height:1.4">
+          Each trial, the reward at moment 10 is delivered with probability p (a fresh random draw). Tip: after training, drop p or r to 0 and watch PE go negative.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Controls</div>
+        <div class="btn-row" style="margin-bottom:0.5rem">
+          <button class="btn primary" id="btn-step-moment" onclick="stepMoment()">Step → moment</button>
+          <button class="btn" id="btn-step-trial" onclick="stepTrial()">Step → trial</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btn-run-many" onclick="runMany()">Run 30 trials</button>
+          <button class="btn danger" onclick="resetTDRL()">Reset</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">What's happening</div>
+        <div id="tdrl-explain" class="info-box" style="font-size:0.74rem; line-height:1.55">
+          Press <strong>Step → moment</strong> to begin. The cue (tone) appears at moment 3. Reward arrives at moment 10.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Formula</div>
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--label); line-height:1.8">
+          <div>V(St)<sub>new</sub> = V(St)<sub>old</sub> + α · <span style="color:var(--pe-pos)">PE</span></div>
+          <div style="margin-top:0.3rem"><span style="color:var(--pe-pos)">PE</span> = r<sub>t</sub> + γ·V(St+1) − V(St)<sub>old</sub></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Main display -->
+    <div>
+      <div class="status-bar" id="tdrl-status">Trial 1 · Moment 0 · Ready to step</div>
+
+      <div class="timeline-wrap">
+        <div class="timeline-title">Timeline — 10 moments per trial</div>
+
+        <!-- Moment labels -->
+        <div class="tl-grid">
+          <div class="tl-row">
+            <div class="tl-row-label"></div>
+            <div class="tl-cell moment-label">1</div>
+            <div class="tl-cell moment-label">2</div>
+            <div class="tl-cell moment-label">3<br><span style="color:var(--cue-a);font-size:0.6rem">cue</span></div>
+            <div class="tl-cell moment-label">4</div>
+            <div class="tl-cell moment-label">5</div>
+            <div class="tl-cell moment-label">6</div>
+            <div class="tl-cell moment-label">7</div>
+            <div class="tl-cell moment-label">8</div>
+            <div class="tl-cell moment-label">9</div>
+            <div class="tl-cell moment-label">10<br><span style="color:var(--reward);font-size:0.6rem">reward</span></div>
+          </div>
+
+          <!-- V(St) row -->
+          <div class="tl-row" id="v-row">
+            <div class="tl-row-label">V(St)</div>
+          </div>
+
+          <!-- PE row -->
+          <div class="tl-row" id="pe-row">
+            <div class="tl-row-label">PE</div>
+          </div>
+
+          <!-- Current moment indicator -->
+          <div class="tl-row" id="cursor-row">
+            <div class="tl-row-label"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Four live bar charts -->
+      <div class="timeline-wrap" style="margin-top:1rem">
+        <div class="timeline-title" id="bars-title">Waiting for first trial to complete…</div>
+        <div id="four-bars" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.75rem;padding:0.5rem 0 0.25rem">
+
+          <div class="bar-chart-item">
+            <div class="bar-chart-item-label">V(St) at reward<br><span>moment 10</span></div>
+            <div class="bar-chart-item-track">
+              <div class="bar-chart-item-fill" id="bar-v-reward" style="background:#f0c040"></div>
+            </div>
+            <div class="bar-chart-item-val" id="val-v-reward">0.00</div>
+          </div>
+
+          <div class="bar-chart-item">
+            <div class="bar-chart-item-label">V(St) after cue<br><span>moment 4</span></div>
+            <div class="bar-chart-item-track">
+              <div class="bar-chart-item-fill" id="bar-v-cue" style="background:#d2a8ff"></div>
+            </div>
+            <div class="bar-chart-item-val" id="val-v-cue">0.00</div>
+          </div>
+
+          <div class="bar-chart-item">
+            <div class="bar-chart-item-label">PE at reward<br><span>moment 10</span></div>
+            <div class="bar-chart-item-track">
+              <div class="bar-chart-item-fill" id="bar-pe-reward" style="background:#58a6ff"></div>
+            </div>
+            <div class="bar-chart-item-val" id="val-pe-reward">0.00</div>
+          </div>
+
+          <div class="bar-chart-item">
+            <div class="bar-chart-item-label">PE at cue onset<br><span>moment 3</span></div>
+            <div class="bar-chart-item-track">
+              <div class="bar-chart-item-fill" id="bar-pe-cue" style="background:#ffa657"></div>
+            </div>
+            <div class="bar-chart-item-val" id="val-pe-cue">0.00</div>
+          </div>
+
+        </div>
+        <div style="display:flex;gap:1.5rem;padding:0.4rem 0 0;font-size:0.68rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;flex-wrap:wrap">
+          <span>↑ V(reward) &amp; PE@cue grow with learning</span>
+          <span>↓ PE@reward shrinks as outcome becomes predicted</span>
+          <span style="color:var(--pe-neg)">■ red bar = negative PE (worse than expected)</span>
+          <span>Bars show the most recent trial only. With p &lt; 1 they jump around; see the history below.</span>
+        </div>
+      </div>
+
+      <!-- Per-trial history -->
+      <div class="timeline-wrap" style="margin-top:1rem">
+        <div class="timeline-title">History — last 40 trials</div>
+        <canvas id="hist-canvas" height="170" style="width:100%;display:block"></canvas>
+        <div style="display:flex;gap:1.25rem;padding:0.5rem 0 0;font-size:0.68rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;flex-wrap:wrap">
+          <span><span style="color:var(--pe-pos)">■</span> PE at reward, rewarded trial</span>
+          <span><span style="color:var(--pe-neg)">■</span> PE at reward, omitted trial</span>
+          <span><span style="color:var(--reward)">━</span> V(moment 10)</span>
+          <span><span style="color:var(--cue-b)">━</span> PE at cue onset</span>
+          <span>╌ expected reward p·r</span>
+        </div>
+        <div id="hist-stats" style="padding:0.5rem 0 0;font-size:0.72rem;color:var(--label);font-family:'IBM Plex Mono',monospace;line-height:1.6">
+          Complete a trial to start the history.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- TAB 2: BLOCKING                         -->
+<!-- ════════════════════════════════════════ -->
+<div id="panel-blocking" class="panel">
+
+  <!-- Top controls row -->
+  <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1.25rem">
+
+    <div class="card" style="flex:0 0 auto;min-width:200px">
+      <div class="card-title">Parameters</div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span>Learning rate (α)</span>
+          <span class="val" id="b-alpha-val">0.30</span>
+        </div>
+        <input type="range" id="b-alpha-sl" min="0.05" max="0.8" step="0.05" value="0.3"
+          oninput="updateBlockParam('alpha', this.value)">
+      </div>
+      <div class="slider-row" style="margin-top:0.5rem">
+        <div class="slider-label">
+          <span>Trials per stage</span>
+          <span class="val" id="b-trials-val">20</span>
+        </div>
+        <input type="range" id="b-trials-sl" min="10" max="40" step="5" value="20"
+          oninput="updateBlockParam('trials', this.value)">
+      </div>
+    </div>
+
+    <div class="card" style="flex:0 0 auto">
+      <div class="card-title">Optogenetics — Stage 2</div>
+      <label class="opto-toggle" for="opto-cb">
+        <input type="checkbox" id="opto-cb" onchange="block.opto = this.checked">
+        <span>
+          <span class="opto-main">Inject PE in blocking group</span>
+          <span class="opto-sub">Steinberg et al. (2013) — rescues B learning</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="card" style="flex:0 0 auto">
+      <div class="card-title">Run Stages (each can be re-run)</div>
+      <div class="btn-row">
+        <button class="btn primary" id="btn-s1" onclick="runStage(1)">▶ Stage 1</button>
+        <button class="btn primary" id="btn-s2" onclick="runStage(2)" disabled>▶ Stage 2</button>
+        <button class="btn primary" id="btn-s3" onclick="runStage(3)" disabled>▶ Stage 3</button>
+        <button class="btn danger" onclick="resetBlocking()">Reset</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Three stage rows, stacked -->
+  <div id="stage-rows" style="display:flex;flex-direction:column;gap:1rem">
+
+    <!-- STAGE 1 -->
+    <div class="stage-panel" id="stage-panel-1">
+      <div class="stage-panel-header">
+        <div class="stage-panel-title">Stage 1</div>
+        <div class="stage-panel-desc">
+          <span class="cue-tag a">A</span><span class="arrow">→</span><span class="cue-tag r">R</span>
+          <span style="margin-left:0.75rem;color:var(--muted);font-size:0.75rem">Blocking group learns A predicts reward</span>
+          &nbsp;&nbsp;&nbsp;
+          <span class="cue-tag" style="background:rgba(63,185,80,0.12);color:var(--pe-pos)">C</span><span class="arrow">→</span><span class="cue-tag r">R</span>
+          <span style="margin-left:0.75rem;color:var(--muted);font-size:0.75rem">Control group learns C predicts reward</span>
+        </div>
+        <div class="stage-panel-status" id="s1-status">Not run yet</div>
+      </div>
+      <div class="stage-charts">
+        <div class="stage-chart-wrap">
+          <div class="stage-chart-label" style="color:var(--cue-a)">Blocking Group — Behavior (Cue A)</div>
+          <div class="chart-legend">% time in reward port during cue</div>
+          <canvas id="c-s1-block" height="110"></canvas>
+        </div>
+        <div class="stage-chart-wrap">
+          <div class="stage-chart-label" style="color:var(--pe-pos)">Control Group — Behavior (Cue C)</div>
+          <div class="chart-legend">% time in reward port during cue</div>
+          <canvas id="c-s1-ctrl" height="110"></canvas>
+        </div>
+      </div>
+      <div class="info-box" id="s1-interp" style="margin-top:0.6rem;display:none"></div>
+    </div>
+
+    <!-- STAGE 2 -->
+    <div class="stage-panel stage-panel-dim" id="stage-panel-2">
+      <div class="stage-panel-header">
+        <div class="stage-panel-title">Stage 2</div>
+        <div class="stage-panel-desc">
+          <span class="cue-tag a">A</span><span class="cue-tag b">B</span><span class="arrow">→</span><span class="cue-tag r">R</span>
+          <span style="margin-left:0.75rem;color:var(--muted);font-size:0.75rem">Both groups get the same compound. Blocking group: A is already trained. Control group: A is novel. Does B learn?</span>
+        </div>
+        <div class="stage-panel-status" id="s2-status">Run Stage 1 first</div>
+      </div>
+      <div class="stage-charts">
+        <div class="stage-chart-wrap">
+          <div class="stage-chart-label" style="color:var(--cue-a)">Blocking Group — A is already trained</div>
+          <div class="chart-legend">solid = V(B) · dotted = V(A) · dashed = response to A+B</div>
+          <canvas id="c-s2-block" height="110"></canvas>
+        </div>
+        <div class="stage-chart-wrap">
+          <div class="stage-chart-label" style="color:var(--pe-pos)">Control Group — A is novel</div>
+          <div class="chart-legend">solid = V(B) · dotted = V(A) · dashed = response to A+B</div>
+          <canvas id="c-s2-ctrl" height="110"></canvas>
+        </div>
+      </div>
+      <div class="info-box" id="s2-interp" style="margin-top:0.6rem;display:none"></div>
+    </div>
+
+    <!-- STAGE 3 -->
+    <div class="stage-panel stage-panel-dim" id="stage-panel-3">
+      <div class="stage-panel-header">
+        <div class="stage-panel-title">Stage 3 — Extinction (Cue B alone, no reward)</div>
+        <div class="stage-panel-desc">
+          <span class="cue-tag b">B</span><span class="arrow">→</span><span class="cue-tag none">no reward</span>
+          <span style="margin-left:0.75rem;color:var(--muted);font-size:0.75rem">How much does each group respond to B? How fast does it extinguish?</span>
+        </div>
+        <div class="stage-panel-status" id="s3-status">Run Stage 2 first</div>
+      </div>
+      <div class="stage-charts">
+        <div class="stage-chart-wrap">
+          <div class="stage-chart-label" style="color:var(--cue-a)">Blocking Group — Extinction of B</div>
+          <div class="chart-legend">% time in reward port during B</div>
+          <canvas id="c-s3-block" height="110"></canvas>
+        </div>
+        <div class="stage-chart-wrap">
+          <div class="stage-chart-label" style="color:var(--pe-pos)">Control Group — Extinction of B</div>
+          <div class="chart-legend">% time in reward port during B</div>
+          <canvas id="c-s3-ctrl" height="110"></canvas>
+        </div>
+      </div>
+      <div class="info-box" id="s3-interp" style="margin-top:0.6rem;display:none"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'tdrl') drawHistory();   // canvas width is 0 while its tab is hidden, so redraw on show
+}
+
+// ══════════════════════════════════════════
+// TDRL STATE
+// ══════════════════════════════════════════
+const CUE_MOMENT    = 3;   // 1-indexed
+const REWARD_MOMENT = 10;
+const N_MOMENTS     = 10;
+
+let tdrl = {
+  alpha: 0.5,
+  gamma: 1.0,
+  reward: 4.0,
+  prob: 1.0,              // probability that the reward is delivered on a given trial
+  rewarded: false,        // outcome of this trial's draw (set when moment 10 is reached)
+  history: [],            // one entry per completed trial, for the history chart
+  scaleMax: 4.0,          // bar/cell scale: only grows until Reset, so omitting reward doesn't rescale everything
+  trial: 1,
+  moment: 0,
+  running: false,         // true while "Run 30 trials" is animating
+  token: 0,               // bumped by Reset/Run to cancel stale timers
+  V: new Array(N_MOMENTS + 1).fill(0),
+  PE: new Array(N_MOMENTS + 1).fill(null),
+};
+
+function updateParam(key, val) {
+  tdrl[key] = parseFloat(val);
+  document.getElementById(key + '-val').textContent =
+    key === 'reward' ? tdrl.reward.toFixed(1) : tdrl[key].toFixed(2);
+  if (key === 'reward' || key === 'prob') {
+    document.getElementById('ev-val').textContent = (tdrl.prob * tdrl.reward).toFixed(2);
+  }
+  if (key === 'reward') {
+    tdrl.scaleMax = Math.max(tdrl.scaleMax, tdrl.reward);
+    renderTDRL();
+  }
+  if (key === 'reward' || key === 'prob') drawHistory();
+}
+
+function setTdrlButtons() {
+  ['btn-step-moment', 'btn-step-trial', 'btn-run-many'].forEach(id => {
+    document.getElementById(id).disabled = tdrl.running;
+  });
+}
+
+function resetTDRL() {
+  tdrl.token++;           // cancels any "Run 30 trials" in progress
+  tdrl.running = false;
+  tdrl.trial = 1;
+  tdrl.moment = 0;
+  tdrl.scaleMax = Math.max(tdrl.reward, 1);
+  tdrl.V = new Array(N_MOMENTS + 1).fill(0);
+  tdrl.PE = new Array(N_MOMENTS + 1).fill(null);
+  tdrl.history = [];
+  tdrl.rewarded = false;
+  renderTDRL();
+  setTdrlButtons();
+  updateBars(0, 0, 0, 0);
+  drawHistory();
+  document.getElementById('bars-title').textContent = 'Waiting for first trial to complete…';
+  document.getElementById('tdrl-status').textContent = 'Trial 1 · Moment 0 · Ready to step';
+  document.getElementById('tdrl-explain').innerHTML =
+    'Press <strong>Step → moment</strong> to begin. The cue (tone) appears at moment 3. Reward arrives at moment 10.';
+}
+
+function getReward(m) {
+  return (m === REWARD_MOMENT && tdrl.rewarded) ? tdrl.reward : 0;
+}
+
+// Rules:
+// Moments 1,2: before the cue — world is unpredictable, V=0 always, PE=0 always, no update.
+// Moment 3 (cue): PE fires here (because V(4) has grown to predict future reward),
+//   but V(3) is NEVER updated — the cue onset itself is unpredictable so no value lives here.
+// Moments 4–10: V is updated normally via TDRL rule.
+function computePE(m) {
+  if (m < CUE_MOMENT) return 0;
+  const r = getReward(m);
+  const vNext = m < N_MOMENTS ? tdrl.V[m + 1] : 0;
+  const vCurrent = (m === CUE_MOMENT) ? 0 : tdrl.V[m];
+  return r + tdrl.gamma * vNext - vCurrent;
+}
+
+// Advance exactly one moment (no rendering). Returns {m, pe}.
+function advanceMoment() {
+  tdrl.moment++;
+  const m = tdrl.moment;
+  if (m === REWARD_MOMENT) tdrl.rewarded = Math.random() < tdrl.prob;   // the trial's reward draw
+  const pe = computePE(m);
+  tdrl.PE[m] = pe;
+  if (m > CUE_MOMENT) {
+    tdrl.V[m] = Math.max(-20, Math.min(20, tdrl.V[m] + tdrl.alpha * pe));
+  }
+  return { m, pe };
+}
+
+function stepMoment() {
+  if (tdrl.running) return;
+  if (tdrl.moment >= N_MOMENTS) {   // trial already played out: this press closes it
+    endTrial();
+    return;
+  }
+  if (tdrl.moment === 0) tdrl.PE.fill(null);   // new trial: clear last trial's PE row
+
+  const { m, pe } = advanceMoment();
+  renderTDRL();
+  updateExplain(m, pe);
+  document.getElementById('tdrl-status').textContent =
+    `Trial ${tdrl.trial} · Moment ${m} · PE = ${pe.toFixed(2)}`;
+}
+
+function endTrial() {
+  // PE[m] was stored before V was updated, so these are the PEs that occurred this trial.
+  const peReward = tdrl.PE[REWARD_MOMENT] || 0;     // signed: negative PE is shown, not hidden
+  const peCue    = tdrl.PE[CUE_MOMENT] || 0;
+  const vReward  = tdrl.V[REWARD_MOMENT] || 0;
+  const vCue     = tdrl.V[CUE_MOMENT + 1] || 0;
+
+  const completedTrial = tdrl.trial;
+  updateBars(vReward, vCue, peReward, peCue);
+  tdrl.history.push({ trial: completedTrial, rewarded: tdrl.rewarded, peReward, peCue, vReward, vCue });
+  if (tdrl.history.length > 500) tdrl.history.shift();
+  drawHistory();
+  document.getElementById('bars-title').textContent =
+    `Values from trial ${completedTrial} — bars update after each completed trial`;
+
+  tdrl.trial++;
+  tdrl.moment = 0;      // PE row is left on screen until the next trial starts
+  renderTDRL();
+  document.getElementById('tdrl-status').textContent =
+    `Trial ${tdrl.trial} · Moment 0 · Ready for next trial`;
+  document.getElementById('tdrl-explain').innerHTML =
+    `End of trial ${completedTrial}: reward ${tdrl.rewarded && tdrl.reward > 0 ? 'delivered' : 'omitted'}` +
+    `${tdrl.prob < 1 ? ` (p = ${tdrl.prob.toFixed(2)})` : ''}. ` +
+    `PE at cue onset (moment 3) = <strong>${peCue.toFixed(2)}</strong> — ` +
+    `this is the DA signal that grows as value propagates back to the cue. ` +
+    `PE at reward = <strong>${peReward.toFixed(2)}</strong>. ` +
+    `V(moment 4) = <strong>${vCue.toFixed(2)}</strong>, V(reward) = <strong>${vReward.toFixed(2)}</strong>. ` +
+    `The PE row above still shows this trial. Press step to start the next one.`;
+}
+
+// Play out whatever remains of the current trial, then close it.
+function completeTrial() {
+  if (tdrl.moment === 0) tdrl.PE.fill(null);
+  while (tdrl.moment < N_MOMENTS) advanceMoment();
+  endTrial();
+}
+
+function stepTrial() {
+  if (tdrl.running) return;
+  completeTrial();
+}
+
+function runMany() {
+  if (tdrl.running) return;
+  tdrl.running = true;
+  const token = ++tdrl.token;
+  setTdrlButtons();
+  let n = 30;
+  (function tick() {
+    if (token !== tdrl.token) return;           // Reset pressed: stop quietly
+    if (n-- <= 0) { tdrl.running = false; setTdrlButtons(); return; }
+    completeTrial();
+    setTimeout(tick, 150);
+  })();
+}
+
+function updateExplain(m, pe) {
+  const r = getReward(m);
+  const vNext = m < N_MOMENTS ? tdrl.V[m + 1] : 0;
+  let html = '';
+
+  if (m < CUE_MOMENT) {
+    html = `<strong>Moment ${m}: pre-cue.</strong> The cue has not appeared yet — the world is unpredictable. V(${m}) = 0 (locked), PE = 0. No update occurs.`;
+  } else if (m === CUE_MOMENT) {
+    html = `<strong>Moment ${m}: Cue appears.</strong> ` +
+      `PE = r(0) + γ·V(t+1)(${(tdrl.gamma * vNext).toFixed(2)}) − V(t)(0) = ` +
+      `<strong style="color:${pe > 0.001 ? 'var(--pe-pos)' : 'var(--pe-zero)'}">${pe.toFixed(2)}</strong>. ` +
+      `Note: V(3) stays 0 — the cue onset is itself unpredictable, so no value lives here. ` +
+      `The PE at cue onset grows across trials as V(moment 4) builds up, producing the cue-evoked DA response.`;
+  } else if (m === REWARD_MOMENT) {
+    const vOld = tdrl.V[m] - tdrl.alpha * pe;
+    html = `<strong>Moment ${m}: ${r > 0 ? 'Reward delivered' : 'Reward omitted'} (r = ${r.toFixed(1)}).</strong> ` +
+      (tdrl.prob < 1 ? `<em style="color:var(--muted)">This trial's draw with p = ${tdrl.prob.toFixed(2)} came up ${tdrl.rewarded ? 'reward' : 'no reward'}.</em> ` : '') +
+      `PE = ${r.toFixed(1)} + γ·V(t+1)(0) − V(t)(${vOld.toFixed(2)}) = ` +
+      `<strong style="color:${pe > 0.001 ? 'var(--pe-pos)' : pe < -0.001 ? 'var(--pe-neg)' : 'var(--pe-zero)'}">${pe.toFixed(2)}</strong>. ` +
+      `V(10): ${vOld.toFixed(2)} → ${tdrl.V[m].toFixed(2)}.` +
+      (Math.abs(pe) < 0.15 ? ' <em style="color:var(--muted)">PE ≈ 0: outcome fully expected.</em>' : '') +
+      (pe < -0.15 ? ' <em style="color:var(--pe-neg)">Negative PE: worse than expected — the DA dip.</em>' : '') +
+      ` <em style="color:var(--muted)">Press step once more to finish the trial and update the bars.</em>`;
+  } else {
+    const vOld = tdrl.V[m] - tdrl.alpha * pe;
+    html = `<strong>Moment ${m}:</strong> ` +
+      `PE = r(0) + γ·V(t+1)(${(tdrl.gamma * vNext).toFixed(2)}) − V(t)(${vOld.toFixed(2)}) = ` +
+      `<strong style="color:${pe > 0.001 ? 'var(--pe-pos)' : pe < -0.001 ? 'var(--pe-neg)' : 'var(--pe-zero)'}">${pe.toFixed(2)}</strong>. ` +
+      `V(${m}): ${vOld.toFixed(2)} → ${tdrl.V[m].toFixed(2)}.`;
+  }
+  document.getElementById('tdrl-explain').innerHTML = html;
+}
+
+function renderTDRL() {
+  const vRow = document.getElementById('v-row');
+  const peRow = document.getElementById('pe-row');
+  const cursorRow = document.getElementById('cursor-row');
+
+  while (vRow.children.length > 1) vRow.removeChild(vRow.lastChild);
+  while (peRow.children.length > 1) peRow.removeChild(peRow.lastChild);
+  while (cursorRow.children.length > 1) cursorRow.removeChild(cursorRow.lastChild);
+
+  const scale = Math.max(tdrl.scaleMax, 1);
+
+  for (let m = 1; m <= N_MOMENTS; m++) {
+    const v = tdrl.V[m];
+    const pe = tdrl.PE[m];
+    const isCurrent = m === tdrl.moment;
+
+    // V cell
+    const vc = document.createElement('div');
+    vc.className = 'tl-cell';
+    if (isCurrent) vc.style.borderColor = 'var(--da)';
+    const vPct = Math.max(0, Math.min(100, (v / scale) * 100));
+    vc.innerHTML = `<div class="tl-bar" style="height:${vPct}%;background:rgba(31,111,235,0.4)"></div>
+                    <span class="cell-val">${v !== 0 ? v.toFixed(2) : '—'}</span>`;
+    vRow.appendChild(vc);
+
+    // PE cell
+    const pc = document.createElement('div');
+    pc.className = 'tl-cell';
+    if (isCurrent) pc.style.borderColor = 'var(--da)';
+    let peColor = 'var(--pe-zero)';
+    let pePct = 0;
+    if (pe !== null && pe !== undefined) {
+      if (pe > 0.005) { peColor = 'var(--pe-pos)'; pePct = Math.min(100, (pe / scale) * 100); }
+      else if (pe < -0.005) { peColor = 'var(--pe-neg)'; pePct = Math.min(100, (-pe / scale) * 100); }
+    }
+    pc.innerHTML = `<div class="tl-bar" style="height:${pePct}%;background:color-mix(in srgb, ${peColor} 33%, transparent)"></div>
+                    <span class="cell-val" style="color:${peColor}">${pe !== null && pe !== undefined ? pe.toFixed(2) : '—'}</span>`;
+    peRow.appendChild(pc);
+
+    // Cursor
+    const cc = document.createElement('div');
+    cc.className = 'tl-cell';
+    cc.style.background = 'none';
+    cc.style.border = 'none';
+    cc.style.color = 'var(--da)';
+    cc.style.fontSize = '0.8rem';
+    cc.textContent = isCurrent ? '▲' : '';
+    cursorRow.appendChild(cc);
+  }
+}
+
+const BAR_COLORS = {
+  'bar-v-reward':  '#f0c040',
+  'bar-v-cue':     '#d2a8ff',
+  'bar-pe-reward': '#58a6ff',
+  'bar-pe-cue':    '#ffa657',
+};
+
+function updateBars(vReward, vCue, peReward, peCue) {
+  const scale = Math.max(tdrl.scaleMax, 1);
+
+  // Signed bars: height = |value|, red when negative, so a negative PE is visible.
+  function setBar(fillId, valId, value) {
+    const v = (value == null || isNaN(value)) ? 0 : value;
+    const pct = Math.min(100, Math.abs(v) / scale * 100);
+    const el = document.getElementById(fillId);
+    el.style.height = pct + '%';
+    el.style.background = v < -0.005 ? '#f85149' : BAR_COLORS[fillId];
+    document.getElementById(valId).textContent = v.toFixed(2);
+  }
+
+  setBar('bar-v-reward',  'val-v-reward',  vReward);
+  setBar('bar-v-cue',     'val-v-cue',     vCue);
+  setBar('bar-pe-reward', 'val-pe-reward', peReward);
+  setBar('bar-pe-cue',    'val-pe-cue',    peCue);
+}
+
+// Per-trial history: PE at reward (bars, green = rewarded, red = omitted),
+// V(moment 10) and PE at cue onset (lines), and the expected reward p·r (dashed).
+function drawHistory() {
+  const canvas = document.getElementById('hist-canvas');
+  const statsEl = document.getElementById('hist-stats');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(300, canvas.parentElement.clientWidth - 32);
+  const H = 170;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const WINDOW = 40;
+  const pad = { l: 40, r: 12, t: 10, b: 22 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  const S = Math.max(tdrl.scaleMax, 1);
+  const py = v => pad.t + ph * (1 - (Math.max(-S, Math.min(S, v)) + S) / (2 * S));
+  const data = tdrl.history.slice(-WINDOW);
+  const sw = pw / WINDOW;
+  const xc = j => pad.l + (j + 0.5) * sw;
+
+  // Grid + axis labels
+  ctx.font = '9px IBM Plex Mono'; ctx.textAlign = 'right';
+  [[S, '+' + S.toFixed(0)], [0, '0'], [-S, '−' + S.toFixed(0)]].forEach(([v, label]) => {
+    const y = py(v);
+    ctx.strokeStyle = v === 0 ? '#484f58' : '#21262d'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+    ctx.fillStyle = '#7d8590';
+    ctx.fillText(label, pad.l - 4, y + 3);
+  });
+
+  // Expected reward p·r
+  const ev = tdrl.prob * tdrl.reward;
+  ctx.save();
+  ctx.setLineDash([4, 3]); ctx.strokeStyle = '#f0c040'; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(pad.l, py(ev)); ctx.lineTo(pad.l + pw, py(ev)); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = '#f0c040'; ctx.textAlign = 'right';
+  ctx.fillText('p·r', pad.l + pw, py(ev) - 3);
+
+  if (!data.length) {
+    ctx.fillStyle = '#7d8590'; ctx.textAlign = 'center';
+    ctx.fillText('no trials yet', pad.l + pw / 2, pad.t + ph / 2);
+    if (statsEl) statsEl.textContent = 'Complete a trial to start the history.';
+    return;
+  }
+
+  // PE at reward: signed bars around zero
+  data.forEach((h, j) => {
+    const y0 = py(0), y1 = py(h.peReward);
+    ctx.fillStyle = h.peReward >= 0 ? '#3fb950' : '#f85149';
+    ctx.globalAlpha = 0.75;
+    const top = Math.min(y0, y1), height = Math.max(1, Math.abs(y1 - y0));
+    ctx.fillRect(xc(j) - sw * 0.28, top, sw * 0.56, height);
+    ctx.globalAlpha = 1;
+  });
+
+  // Lines: V(moment 10) and PE at cue onset
+  function line(key, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    data.forEach((h, j) => { j === 0 ? ctx.moveTo(xc(j), py(h[key])) : ctx.lineTo(xc(j), py(h[key])); });
+    ctx.stroke();
+    ctx.fillStyle = color;
+    data.forEach((h, j) => { ctx.beginPath(); ctx.arc(xc(j), py(h[key]), 1.8, 0, Math.PI * 2); ctx.fill(); });
+  }
+  line('vReward', '#f0c040');
+  line('peCue', '#ffa657');
+
+  // X labels
+  ctx.fillStyle = '#7d8590'; ctx.textAlign = 'center';
+  ctx.fillText(data[0].trial, xc(0), H - 8);
+  if (data.length > 1) ctx.fillText(data[data.length - 1].trial, xc(data.length - 1), H - 8);
+  ctx.fillText('Trial', pad.l + pw / 2, H - 8);
+
+  // Summary over the last 10 trials
+  const last = tdrl.history.slice(-10);
+  const mean = k => last.reduce((s, h) => s + h[k], 0) / last.length;
+  const nRew = last.filter(h => h.rewarded && tdrl.reward > 0).length;
+  if (statsEl) {
+    statsEl.innerHTML =
+      `Last ${last.length} trial${last.length > 1 ? 's' : ''}: rewarded ${nRew}/${last.length} · ` +
+      `mean V(10) = <span style="color:var(--reward)">${mean('vReward').toFixed(2)}</span> (p·r = ${ev.toFixed(2)}) · ` +
+      `mean PE@reward = <span style="color:var(--text)">${mean('peReward').toFixed(2)}</span> · ` +
+      `mean PE@cue = <span style="color:var(--cue-b)">${mean('peCue').toFixed(2)}</span>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// BLOCKING — THREE-STAGE SIMULATION
+// ══════════════════════════════════════════
+let block = {
+  alpha: 0.3,
+  trials: 20,
+  opto: false,
+  V_A_block: 0,   // blocking group, cue A value after Stage 1
+  V_B_block: 0,   // blocking group, cue B value after Stage 2
+  V_B_ctrl:  0,   // control group, cue B value after Stage 2
+  stageReached: 0,
+  running: false,
+  token: 0,       // bumped on every run/reset so stale animation timers die
+};
+
+function updateBlockParam(key, val) {
+  block[key] = parseFloat(val);
+  document.getElementById('b-' + key + '-val').textContent =
+    key === 'alpha' ? parseFloat(val).toFixed(2) : parseInt(val);
+}
+
+function setBlockButtons() {
+  document.getElementById('btn-s1').disabled = block.running;
+  document.getElementById('btn-s2').disabled = block.running || block.stageReached < 1;
+  document.getElementById('btn-s3').disabled = block.running || block.stageReached < 2;
+}
+
+function clearCanvas(id) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, c.width, c.height);
+}
+
+const PANEL_IDLE_STATUS = { 1: 'Not run yet', 2: 'Run Stage 1 first', 3: 'Run Stage 2 first' };
+
+// Return stage panel n to its "not yet run" state.
+function resetPanel(n) {
+  clearCanvas(`c-s${n}-block`);
+  clearCanvas(`c-s${n}-ctrl`);
+  document.getElementById(`s${n}-interp`).style.display = 'none';
+  document.getElementById(`s${n}-status`).textContent = PANEL_IDLE_STATUS[n];
+  document.getElementById(`stage-panel-${n}`).classList.toggle('stage-panel-dim', n > 1);
+}
+
+function resetBlocking() {
+  block.token++;            // cancels any animation in progress
+  block.running = false;
+  block.V_A_block = 0; block.V_B_block = 0; block.V_B_ctrl = 0;
+  block.stageReached = 0;
+  [1, 2, 3].forEach(resetPanel);
+  setBlockButtons();
+}
+
+// ── Single-cue TDRL runner ──
+// Behavior tracks V each trial (plus a little noise unless noise = 0).
+function runTDRL_stage(params) {
+  const { alpha, trials, R, V_start, noise = 0.04 } = params;
+  let V = V_start;
+  const series = [];
+  for (let t = 0; t < trials; t++) {
+    const pe = R - V;
+    const behavior = Math.max(0, Math.min(1, V + noise * (Math.random() - 0.5)));
+    series.push({ trial: t + 1, behavior, V });
+    V = Math.max(0, Math.min(1.5, V + alpha * pe));
+  }
+  return { series, V_final: V };
+}
+
+// ── Compound-cue TDRL runner (Stage 2, both groups) ──
+// Both groups see the same compound A+B → R, and both cues are updated by one shared PE:
+//   PE = R − (V_A + V_B);  V_A += α·PE;  V_B += α·PE.
+// Blocking group: V_A starts at its Stage-1 value (≈ R), so PE ≈ 0 and B learns almost nothing.
+// Control group:  V_A starts at 0 (A is novel), so PE is large and the two cues split the value.
+// opto: an artificial PE (injectedPE[t]) teaches cue B, mimicking the PE the control group
+//   experiences on the same trial. In this simplified model A is left unchanged while it is on.
+// Series: behavior = V(B), vA = V(A), compound = response to the A+B compound.
+function runTDRL_compound(params) {
+  const { alpha, trials, R, V_A_start, V_B_start = 0, injectedPE = null } = params;
+  let V_A = V_A_start;
+  let V_B = V_B_start;
+  const series = [];
+  const peSeries = [];
+  for (let t = 0; t < trials; t++) {
+    const compound = V_A + V_B;
+    series.push({
+      trial: t + 1,
+      behavior: Math.min(1, V_B),
+      vA: Math.min(1, V_A),
+      compound: Math.min(1, compound),
+    });
+    const peNatural = R - compound;
+    peSeries.push(peNatural);
+    if (injectedPE) {
+      V_B = Math.max(0, Math.min(1.5, V_B + alpha * injectedPE[t]));
+    } else {
+      V_A = Math.max(0, Math.min(1.5, V_A + alpha * peNatural));
+      V_B = Math.max(0, Math.min(1.5, V_B + alpha * peNatural));
+    }
+  }
+  return { series, peSeries, V_A_final: V_A, V_B_final: V_B };
+}
+
+// ── Animated chart drawer ──
+// opts: { token, delay, yLabel, decimal }
+function animateChart(canvasId, series, color, opts, onDone) {
+  const canvas = document.getElementById(canvasId);
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(200, canvas.parentElement.clientWidth - 12);
+  const H = 110;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const pad = { l: 38, r: 10, t: 8, b: 26 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+  const N = series.length;
+  const hasCompound = series.length && series[0].compound !== undefined;
+  const hasA = series.length && series[0].vA !== undefined;
+
+  function px(i) { return pad.l + (i / (N - 1)) * pw; }
+  function py(v) { return pad.t + ph - Math.max(0, Math.min(1, v)) * ph; }
+
+  function drawFrame(upTo) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Axes
+    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph);
+    ctx.lineTo(pad.l + pw, pad.t + ph);
+    ctx.stroke();
+
+    // Y gridlines
+    ctx.font = '9px IBM Plex Mono'; ctx.textAlign = 'right';
+    [0, 0.25, 0.5, 0.75, 1.0].forEach(v => {
+      const y = pad.t + ph - v * ph;
+      ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+      ctx.fillStyle = '#7d8590';
+      ctx.fillText(opts.decimal ? v.toFixed(2) : (v * 100).toFixed(0) + '%', pad.l - 4, y + 3);
+    });
+
+    // X ticks
+    ctx.fillStyle = '#7d8590'; ctx.textAlign = 'center';
+    const step = N <= 10 ? 1 : N <= 20 ? 5 : 10;
+    for (let i = 0; i < N; i++) {
+      if (series[i].trial === 1 || series[i].trial % step === 0 || i === N - 1) {
+        ctx.fillText(series[i].trial, px(i), pad.t + ph + 14);
+      }
+    }
+    ctx.fillText('Trial', pad.l + pw / 2, H - 2);
+
+    // Y label
+    ctx.save();
+    ctx.translate(10, pad.t + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#7d8590';
+    ctx.fillText(opts.yLabel || '% Time', 0, 0);
+    ctx.restore();
+
+    if (upTo < 0) return;
+
+    // Faint dashed compound line and dotted V(A) line (Stage 2, both groups)
+    if (hasCompound) {
+      ctx.save();
+      ctx.setLineDash([5, 3]);
+      ctx.strokeStyle = color; ctx.globalAlpha = 0.4; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i <= upTo; i++) {
+        i === 0 ? ctx.moveTo(px(i), py(series[i].compound))
+                : ctx.lineTo(px(i), py(series[i].compound));
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (hasA) {
+      ctx.save();
+      ctx.setLineDash([1.5, 3]);
+      ctx.strokeStyle = color; ctx.globalAlpha = 0.9; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let i = 0; i <= upTo; i++) {
+        i === 0 ? ctx.moveTo(px(i), py(series[i].vA))
+                : ctx.lineTo(px(i), py(series[i].vA));
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Main data line
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.shadowColor = color + '55'; ctx.shadowBlur = 6;
+    ctx.beginPath();
+    for (let i = 0; i <= upTo; i++) {
+      i === 0 ? ctx.moveTo(px(i), py(series[i].behavior))
+              : ctx.lineTo(px(i), py(series[i].behavior));
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Dot at current
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px(upTo), py(series[upTo].behavior), 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  let i = 0;
+  function tick() {
+    if (opts.token !== block.token) return;   // Reset / new run: abandon this animation
+    drawFrame(i);
+    if (i < N - 1) {
+      i++;
+      setTimeout(tick, opts.delay);
+    } else if (onDone) {
+      onDone();
+    }
+  }
+  tick();
+}
+
+function runStage(stage) {
+  if (block.running) return;
+
+  const alpha = block.alpha;
+  const T = block.trials;
+  const R = 1.0;
+  const opto = block.opto;
+  const delay = 80;
+
+  const token = ++block.token;
+  block.running = true;
+
+  // Re-running a stage wipes it and everything downstream of it.
+  for (let n = stage; n <= 3; n++) resetPanel(n);
+  block.stageReached = stage - 1;
+  document.getElementById(`stage-panel-${stage}`).classList.remove('stage-panel-dim');
+  document.getElementById(`s${stage}-status`).textContent = 'Running…';
+  setBlockButtons();
+
+  let done = 0;
+  function finish(interpHTML) {
+    return () => {
+      if (token !== block.token) return;
+      if (++done < 2) return;
+      block.running = false;
+      block.stageReached = stage;
+      document.getElementById(`s${stage}-status`).textContent = `Complete — ${T} trials`;
+      if (stage < 3) {
+        document.getElementById(`s${stage + 1}-status`).textContent = 'Ready';
+        document.getElementById(`stage-panel-${stage + 1}`).classList.remove('stage-panel-dim');
+      }
+      const box = document.getElementById(`s${stage}-interp`);
+      box.innerHTML = interpHTML();
+      box.style.display = 'block';
+      setBlockButtons();
+    };
+  }
+
+  if (stage === 1) {
+    const blockResult = runTDRL_stage({ alpha, trials: T, R, V_start: 0 });
+    const ctrlResult  = runTDRL_stage({ alpha, trials: T, R, V_start: 0 });
+    block.V_A_block = blockResult.V_final;
+    block.V_B_block = 0;
+    block.V_B_ctrl  = 0;
+
+    const fin = finish(() => {
+      const vA = block.V_A_block;
+      const full = vA >= 0.9;
+      return `<strong>Both groups learn their cue predicts reward.</strong> A positive PE fires on every early trial, driving behavior up. ` +
+        `V(A) in the blocking group reaches ${vA.toFixed(2)}; V(C) in the control group reaches the same value. ` +
+        (full
+          ? `The cue now predicts the reward almost perfectly, so the PE has shrunk to ≈ 0. That is exactly the state Stage 2 needs.`
+          : `<strong>Heads-up:</strong> learning is incomplete (V(A) &lt; 0.9), so a PE is still left over. Blocking in Stage 2 will be only partial. Try more trials or a higher α.`);
+    });
+    const o = { token, delay, yLabel: '% Time' };
+    animateChart('c-s1-block', blockResult.series, '#d2a8ff', o, fin);
+    animateChart('c-s1-ctrl',  ctrlResult.series,  '#3fb950', o, fin);
+
+  } else if (stage === 2) {
+    // Control group: same compound A+B → R, but A is novel (their Stage 1 cue was C),
+    // so a large PE is shared between A and B and both learn.
+    const ctrlResult = runTDRL_compound({ alpha, trials: T, R, V_A_start: 0 });
+    // Blocking group: same compound, but A already predicts R, so little PE is left for B.
+    // With optogenetics, B gets an artificial PE matched to the control group's PE on each trial.
+    const blockResult = runTDRL_compound({
+      alpha, trials: T, R,
+      V_A_start: block.V_A_block,
+      injectedPE: opto ? ctrlResult.peSeries : null,
+    });
+    block.V_B_block = blockResult.V_B_final;
+    block.V_B_ctrl  = ctrlResult.V_B_final;
+
+    const fin = finish(() => {
+      const vA1 = block.V_A_block;                       // A after Stage 1 (blocking group)
+      const vBb = block.V_B_block, vBc = block.V_B_ctrl; // B after Stage 2
+      const vAc = ctrlResult.V_A_final;                  // A after Stage 2 (control group)
+      const shared = `In the control group A was novel, so a large PE was shared by the two cues and they split the value: ` +
+        `V(A) = ${vAc.toFixed(2)}, V(B) = ${vBc.toFixed(2)}. `;
+      if (opto) {
+        return `<strong>Optogenetics ON (Steinberg et al., 2013).</strong> ${shared}` +
+          `In the blocking group A already predicted the reward, but an artificial PE matched to the control group's was delivered at reward, ` +
+          `and B acquired value anyway (V(B) = ${vBb.toFixed(2)}, control ${vBc.toFixed(2)}). ` +
+          `Responding to the compound (dashed) looks the same in both groups; the difference is hidden in V(B). ` +
+          `DA activity is <em>causally sufficient</em> to drive new learning even when no natural prediction error exists.`;
+      }
+      if (vA1 < 0.9) {
+        return `<strong>Partial blocking.</strong> ${shared}` +
+          `Because A was only partly learned in Stage 1 (V(A) = ${vA1.toFixed(2)}), a PE remained in the blocking group too and B learned something (V(B) = ${vBb.toFixed(2)}). ` +
+          `Re-run Stage 1 with more trials or a higher α and compare.`;
+      }
+      return `<strong>Blocking effect.</strong> Both groups saw the same A+B → R. ${shared}` +
+        `In the blocking group Cue A already predicted the reward, so PE ≈ 0 and B learned almost nothing (V(B) = ${vBb.toFixed(2)}). ` +
+        `By the end, responding to the compound (dashed) is high in both groups, so behavior in Stage 2 can't tell them apart. ` +
+        `<strong>No PE → no learning about B.</strong> Stage 3 tests B alone. You can also switch optogenetics on and re-run Stage 2.`;
+    });
+    animateChart('c-s2-block', blockResult.series, '#d2a8ff', { token, delay, yLabel: 'V(B)', decimal: true }, fin);
+    animateChart('c-s2-ctrl',  ctrlResult.series,  '#3fb950', { token, delay, yLabel: 'V(B)', decimal: true }, fin);
+
+  } else if (stage === 3) {
+    // Extinction: Cue B alone, R = 0. V decays from whatever B acquired.
+    const blockExtinct = runTDRL_stage({ alpha, trials: T, R: 0, V_start: block.V_B_block });
+    const ctrlExtinct  = runTDRL_stage({ alpha, trials: T, R: 0, V_start: block.V_B_ctrl });
+
+    const fin = finish(() => {
+      const vBb = block.V_B_block, vBc = block.V_B_ctrl;
+      const head = `<strong>Extinction test — Cue B alone, no reward.</strong> `;
+      if (vBb < 0.5 * vBc) {
+        return head + `The control group starts higher (V(B) = ${vBc.toFixed(2)}) and extinguishes more slowly: there is associative strength to unlearn. ` +
+          `The blocking group starts low (V(B) = ${vBb.toFixed(2)}) and extinguishes quickly because little was ever learned about B. ` +
+          `This behavioral difference is the hallmark of the blocking effect, and mirrors the % time in reward port measure from the 2013 paper.`;
+      }
+      if (opto) {
+        return head + `With the artificial PE, the blocking group's B now behaves like the control group's (${vBb.toFixed(2)} vs ${vBc.toFixed(2)}). ` +
+          `The block was lifted, so B extinguishes at about the same rate in both groups.`;
+      }
+      return head + `The two groups look similar (V(B) = ${vBb.toFixed(2)} vs ${vBc.toFixed(2)}), so blocking was weak in this run. ` +
+        `This happens when A was not fully learned in Stage 1. Re-run Stage 1 with more trials or a higher α.`;
+    });
+    const o = { token, delay, yLabel: '% Time' };
+    animateChart('c-s3-block', blockExtinct.series, '#d2a8ff', o, fin);
+    animateChart('c-s3-ctrl',  ctrlExtinct.series,  '#3fb950', o, fin);
+  }
+}
+
+// ── Init ──
+renderTDRL();
+updateBars(0, 0, 0, 0);
+drawHistory();
+setTdrlButtons();
+setBlockButtons();
+</script>
+</body>
+</html>
