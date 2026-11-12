@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actor-Critic Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: lab bench — controls strip on top, network diagram (left) beside explanation + task (right), readouts row, learning charts below */
+:root {
+  --bg: #EDF0F3;
+  --panel: #FFFFFF;
+  --panel-2: #F6F8FA;
+  --ink: #1B2430;
+  --muted: #5A6575;
+  --line: #D3DAE2;
+  --env: #F29A2E;
+  --env-line: #B9650F;
+  --agent: #ECDF63;
+  --agent-line: #A99C1F;
+  --module: #D3D5D8;
+  --module-line: #98A0A8;
+  --node: #FFFFFF;
+  --state: #00897B;
+  --reward: #2E9E44;
+  --delta: #C62828;
+  --value: #E65100;
+  --hl: #FFC400;
+  --chamber-dark: #3A3F47;
+  --chamber-lit: #FFF3CF;
+  --a0: #E8780C; --a1: #2F6FD6; --a2: #C2185B; --a3: #5E8C1F; --a4: #6A4FC8;
+  --cue: #7B3FA0;
+  --font-display: "Bricolage Grotesque", "Public Sans", system-ui, sans-serif;
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151B; --panel: #19202A; --panel-2: #1F2733; --ink: #E7EBF1; --muted: #9AA6B6; --line: #2E3846;
+  --env: #D17F22; --env-line: #F0A24C; --agent: #57511E; --agent-line: #8F8634; --module: #2C343F; --module-line: #4D5968;
+  --node: #10151C; --state: #2BB3A3; --reward: #4CC066; --delta: #F05A5A; --value: #FF8F45; --hl: #FFC83D;
+  --chamber-dark: #0B0E12; --chamber-lit: #5C5227;
+  --a0: #FF9A3D; --a1: #5B93F2; --a2: #EC5A93; --a3: #93C24B; --a4: #9A84F0; --cue: #B57BDB;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #11151B; --panel: #19202A; --panel-2: #1F2733; --ink: #E7EBF1; --muted: #9AA6B6; --line: #2E3846;
+  --env: #D17F22; --env-line: #F0A24C; --agent: #57511E; --agent-line: #8F8634; --module: #2C343F; --module-line: #4D5968;
+  --node: #10151C; --state: #2BB3A3; --reward: #4CC066; --delta: #F05A5A; --value: #FF8F45; --hl: #FFC83D;
+  --chamber-dark: #0B0E12; --chamber-lit: #5C5227;
+  --a0: #FF9A3D; --a1: #5B93F2; --a2: #EC5A93; --a3: #93C24B; --a4: #9A84F0; --cue: #B57BDB;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-family: var(--font-display); font-size: clamp(26px, 3.2vw, 36px); line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.tagline { color: var(--muted); margin: 4px 0 0; max-width: 62ch; }
+.gk { text-transform: none; letter-spacing: 0; font-size: 1.15em; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* controls */
+.controls { padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+.ctl { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel-2); }
+.seg button { border: 0; background: transparent; color: var(--ink); font: 600 15px var(--font-body); padding: 7px 14px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font: 600 14px var(--font-body); padding: 8px 13px; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.btn[aria-pressed="true"] { background: var(--delta); border-color: var(--delta); color: #fff; }
+.btn:disabled { opacity: .45; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--hl); outline-offset: 2px; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.slider { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.slider input { width: 110px; accent-color: var(--ink); }
+.slider output { font-family: var(--font-mono); font-size: 13px; min-width: 3.2ch; }
+.toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; cursor: pointer; user-select: none; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--ink); }
+details.adv summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 600; }
+details.adv[open] summary { margin-bottom: 8px; }
+.adv-grid { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+
+/* stage */
+.stage { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.diagram { padding: 10px; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* phase stepper */
+.phases { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 0; }
+.phase { font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--panel-2); }
+.phase.done { color: var(--ink); }
+.phase.now { background: var(--hl); border-color: var(--hl); color: #1B2430; }
+.explain { padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.explain h2 { font-family: var(--font-display); font-size: 20px; margin: 0; line-height: 1.2; }
+.explain p { margin: 0; max-width: 62ch; }
+.eq { font-family: var(--font-mono); font-size: 14px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; overflow-x: auto; white-space: nowrap; }
+.eq .d { color: var(--delta); font-weight: 600; }
+.eq .r { color: var(--reward); font-weight: 600; }
+.eq .v { color: var(--value); font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); }
+
+/* task */
+.task { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.task-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.trial-label { font-weight: 700; font-variant-numeric: tabular-nums; }
+.chamber { position: relative; border-radius: 10px; background: var(--chamber-dark); transition: background .35s; padding: 14px 12px 12px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.chamber.lit { background: var(--chamber-lit); }
+.bulb { width: 26px; height: 26px; border-radius: 50%; background: #6B7078; border: 2px solid #2b2f35; transition: background .3s, box-shadow .3s; }
+.chamber.lit .bulb { background: #FFD54A; box-shadow: 0 0 30px 12px rgba(255, 213, 74, .55); }
+.levers { display: flex; justify-content: center; gap: 10px; width: 100%; flex-wrap: wrap; }
+.lever { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 52px; }
+.lever .slot { width: 46px; height: 46px; border-radius: 8px; background: #7d838c; position: relative; overflow: hidden; }
+.lever .handle { position: absolute; left: 7px; right: 7px; top: 10px; height: 14px; border-radius: 5px; background: var(--c); transition: transform .2s; box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.lever.pressed .handle { transform: translateY(16px); }
+.lever .name { font: 700 13px var(--font-body); color: #fff; padding: 0 7px; border-radius: 6px; background: var(--c); }
+.lever .prob { font: 500 11px var(--font-mono); color: #E8ECF0; min-height: 1.3em; }
+.chamber.lit .lever .prob { color: #3c3420; }
+:root[data-theme="dark"] .chamber.lit .lever .prob { color: #F2E7C6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chamber.lit .lever .prob { color: #F2E7C6; } }
+.lever.best .name::after { content: " ★"; }
+.cup { width: 90px; height: 18px; border-radius: 50%; background: #9aa1aa; position: relative; }
+.cup .pool { position: absolute; inset: 3px 12px; border-radius: 50%; background: var(--reward); transform: scale(0); transition: transform .35s; }
+.cup.full .pool { transform: scale(1); }
+.outcome-tag { position: absolute; right: 10px; bottom: 10px; font: 700 13px var(--font-body); padding: 3px 9px; border-radius: 999px; background: var(--panel); color: var(--ink); opacity: 0; transition: opacity .25s; }
+.outcome-tag.show { opacity: 1; }
+
+/* readouts */
+.readouts { padding: 14px 16px; display: grid; grid-template-columns: auto minmax(0, 1.1fr) minmax(0, 1fr); gap: 8px 28px; align-items: start; }
+.big { font: 600 34px var(--font-mono); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.big.delta { color: var(--delta); }
+.readouts .col { display: flex; flex-direction: column; gap: 2px; }
+.policy { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
+.prow { display: grid; grid-template-columns: 22px minmax(0, 1fr) 3.6em 4.4em; gap: 6px; align-items: center; font-size: 13px; }
+.prow .lab { font-weight: 700; color: var(--c); }
+.bar { height: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--c); width: 0; transition: width .4s; }
+.prow .pc { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.prow .pref { font-family: var(--font-mono); color: var(--muted); text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+.trace-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+@media (max-width: 980px) { .readouts { grid-template-columns: auto minmax(0, 1fr); } .trace-wrap { grid-column: 1 / -1; } }
+canvas { display: block; width: 100%; }
+
+/* charts */
+.charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.chart { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.chart h3 { margin: 0; font-size: 15px; font-family: var(--font-body); font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 5px; vertical-align: -1px; }
+.legend span.dash::before { border-radius: 2px; height: 3px; vertical-align: 3px; width: 14px; }
+footer { color: var(--muted); font-size: 13px; max-width: 90ch; }
+
+/* svg */
+svg text { font-family: var(--font-body); fill: var(--ink); }
+.box-env { fill: var(--env); stroke: var(--env-line); stroke-width: 2; }
+.box-agent { fill: var(--agent); stroke: var(--agent-line); stroke-width: 2; }
+.box-mod { fill: var(--module); stroke: var(--module-line); stroke-width: 1.5; }
+.wire { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.wire.dim { stroke: var(--muted); stroke-dasharray: 5 6; stroke-width: 1.6; opacity: .7; }
+.wire.delta { stroke: var(--delta); stroke-width: 4; }
+.arrowhead { fill: var(--ink); }
+.arrowhead.delta { fill: var(--delta); }
+.node circle, .node rect.nb, .node path.nb { fill: var(--node); stroke: var(--ink); stroke-width: 2.2; transition: fill .3s; }
+.node.on circle { fill: var(--state); }
+.node.on text.in { fill: #fff; }
+.node text.in { font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.glow, .node .glow, .boxg .glow { fill: var(--hl); stroke: none; opacity: 0; transition: opacity .25s; }
+.hl > .glow, .node.hl > .glow, .boxg.hl > .glow { opacity: .55; }
+.lbl { font-size: 15px; }
+.lbl-b { font-size: 15px; font-weight: 700; }
+.mod-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
+.env-title { font-family: var(--font-display); font-weight: 700; font-size: 28px; fill: #22160A; }
+.mono { font-family: var(--font-mono); }
+.brain-only { display: none; }
+.brain .brain-only { display: inline; }
+.brain .comp-only { display: none; }
+@media (max-width: 980px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .charts { grid-template-columns: minmax(0, 1fr); } .readouts { grid-template-columns: minmax(0,1fr); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Actor-Critic Lab</h1>
+      <p class="tagline">Pick how many actions the agent can take. One of them secretly pays off best. Step through each trial to watch the critic predict, the actor choose, and the prediction error δ teach them both.</p>
+    </div>
+  </header>
+
+  <section class="panel controls" aria-label="Simulation controls">
+    <div class="ctl">
+      <span class="eyebrow">Number of actions</span>
+      <div class="seg" role="group" aria-label="Number of actions" id="nseg">
+        <button id="n2" data-n="2">2</button><button id="n3" data-n="3" aria-pressed="true">3</button><button id="n4" data-n="4">4</button><button id="n5" data-n="5">5</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="eyebrow">Run</span>
+      <div class="btn-row">
+        <button class="btn primary" id="stepBtn" title="Shortcut: right arrow">Next step ▸</button>
+        <button class="btn" id="trialBtn">Play trial</button>
+        <button class="btn" id="autoBtn" aria-pressed="false">Auto-run</button>
+        <button class="btn" id="fastBtn" title="Run 10 trials instantly">+10 trials</button>
+        <button class="btn" id="resetBtn">New task</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="eyebrow">Speed</span>
+      <label class="slider"><input type="range" id="speed" min="0.25" max="3" step="0.25" value="1"><output id="speedOut">1×</output></label>
+    </div>
+    <div class="ctl">
+      <span class="eyebrow">View</span>
+      <div class="btn-row">
+        <label class="toggle"><input type="checkbox" id="reveal"> Reveal best action</label>
+        <label class="toggle"><input type="checkbox" id="brainView"> Brain labels</label>
+      </div>
+    </div>
+    <details class="adv ctl" id="adv">
+      <summary>Model settings</summary>
+      <div class="adv-grid">
+        <label class="slider" title="Critic learning rate">α critic <input type="range" id="alpha" min="0.05" max="1" step="0.05" value="0.3"><output id="alphaOut">0.30</output></label>
+        <label class="slider" title="Actor learning rate">β actor <input type="range" id="beta" min="0.1" max="2" step="0.1" value="1"><output id="betaOut">1.0</output></label>
+        <label class="slider" title="Softmax temperature: higher means more random choices">τ temp <input type="range" id="tau" min="0.2" max="3" step="0.1" value="1"><output id="tauOut">1.0</output></label>
+        <label class="toggle"><input type="checkbox" id="probMode"> Probabilistic rewards (best 80%, others 20%)</label>
+      </div>
+    </details>
+  </section>
+
+  <section class="stage">
+    <div class="panel diagram" id="diagramPanel">
+      <svg id="svg" viewBox="0 0 1000 720" role="img" aria-label="Actor-critic network diagram"></svg>
+    </div>
+    <div class="side">
+      <div class="panel" aria-live="polite">
+        <div class="phases" id="phases"></div>
+        <div class="explain">
+          <h2 id="exTitle">Ready</h2>
+          <p id="exText"></p>
+          <div class="eq" id="exEq"></div>
+          <p class="note" id="exNote"></p>
+        </div>
+      </div>
+      <div class="panel task">
+        <div class="task-head"><span class="eyebrow">Task</span><span class="trial-label" id="trialLabel">Trial 1</span></div>
+        <div class="chamber" id="chamber">
+          <div class="bulb" aria-hidden="true"></div>
+          <div class="levers" id="levers"></div>
+          <div class="cup" id="cup"><div class="pool"></div></div>
+          <div class="outcome-tag" id="outcomeTag"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel readouts">
+      <div class="col">
+        <span class="eyebrow">Critic · V(light)</span>
+        <span class="big" id="vOut">0.00</span>
+        <span class="eyebrow" style="margin-top:10px">Last <span class="gk">δ</span></span>
+        <span class="big delta" id="dOut">–</span>
+      </div>
+      <div class="col">
+        <span class="eyebrow">Actor · policy <span class="gk">π</span> (preference <span class="gk">p</span>)</span>
+        <div class="policy" id="policy"></div>
+      </div>
+      <div class="trace-wrap">
+        <span class="eyebrow"><span class="gk">δ</span> during this trial (≈ dopamine firing)</span>
+        <canvas id="traceCv" height="110"></canvas>
+      </div>
+    </section>
+
+  <section class="charts">
+    <div class="panel chart">
+      <h3>Prediction and policy across trials</h3>
+      <div class="legend" id="leg1"></div>
+      <canvas id="cv1" height="240"></canvas>
+    </div>
+    <div class="panel chart">
+      <h3>Prediction errors across trials</h3>
+      <div class="legend"><span style="--c: var(--cue)">δ at light (cue)</span><span style="--c: var(--delta)">δ at outcome</span></div>
+      <canvas id="cv2" height="240"></canvas>
+    </div>
+  </section>
+
+  <footer>
+    Model: one cue state (light). Critic: V(light) ← V(light) + α·δ. Actor: softmax policy π(a) = e<sup>p(a)/τ</sup> / Σ e<sup>p(b)/τ</sup>, and the chosen action's preference p(a) ← p(a) + β·δ. Prediction error δ = r + V(next) − V(current). The light comes on at unpredictable times, so V(dark) stays 0.
+  </footer>
+</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------------ state
+  const LET = ['A', 'B', 'C', 'D', 'E'];
+  const PH = [
+    { key: 'light', name: 'Light on' },
+    { key: 'value', name: 'Predict V' },
+    { key: 'cue', name: 'δ at light' },
+    { key: 'policy', name: 'Policy π' },
+    { key: 'act', name: 'Act' },
+    { key: 'outcome', name: 'Outcome' },
+    { key: 'delta', name: 'δ at outcome' },
+    { key: 'learn', name: 'Learn' },
+  ];
+  const S = {
+    N: 3, best: 0, alpha: 0.3, beta: 1, tau: 1, prob: false,
+    V: 0, p: [], trial: 1, phase: -1, history: [],
+    cur: null, // current trial record
+    busy: false, auto: false, run: 0, speed: 1,
+  };
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const aCol = i => `var(--a${i})`;
+  const fmt = (x, d = 2) => (Math.abs(x) < 0.005 ? 0 : x).toFixed(d);
+  const sgn = (x, d = 2) => (x > 0.005 ? '+' : '') + fmt(x, d);
+  const softmax = (p, tau) => { const m = Math.max(...p); const e = p.map(x => Math.exp((x - m) / tau)); const s = e.reduce((a, b) => a + b, 0); return e.map(x => x / s); };
+  const rewardProb = a => S.prob ? (a === S.best ? 0.8 : 0.2) : (a === S.best ? 1 : 0);
+
+  // ------------------------------------------------------------------ diagram
+  const svg = $('svg');
+  const NS = 'http://www.w3.org/2000/svg';
+  const G = {};          // geometry
+  const P = {};          // paths
+  let pulseLayer;
+  function el(tag, attrs = {}, parent = svg) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.appendChild(e); return e;
+  }
+  function txt(s, x, y, cls, parent = svg, extra = {}) { const t = el('text', { x, y, class: cls, ...extra }, parent); t.textContent = s; return t; }
+  function dual(comp, brain, x, y, cls, parent = svg, extra = {}) {
+    txt(comp, x, y, cls + ' comp-only', parent, extra);
+    txt(brain, x, y, cls + ' brain-only', parent, extra);
+  }
+  const pathD = pts => 'M' + pts.map(p => p.join(' ')).join(' L');
+  function wire(pts, cls = 'wire', head = true, parent = svg) {
+    let q = pts;
+    if (head) { // shorten last segment for arrowhead
+      const [a, b] = [pts[pts.length - 2], pts[pts.length - 1]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]); const k = (L - 9) / L;
+      q = pts.slice(0, -1).concat([[a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]]);
+    }
+    const w = el('path', { d: pathD(q), class: cls }, parent);
+    if (head) arrowHead(pts[pts.length - 2], pts[pts.length - 1], cls.includes('delta') ? 'arrowhead delta' : 'arrowhead', parent);
+    return w;
+  }
+  function arrowHead(a, b, cls, parent = svg, s = 13) {
+    const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    const p1 = [b[0] - s * Math.cos(ang - 0.42), b[1] - s * Math.sin(ang - 0.42)];
+    const p2 = [b[0] - s * Math.cos(ang + 0.42), b[1] - s * Math.sin(ang + 0.42)];
+    return el('path', { d: `M${b[0]} ${b[1]} L${p1[0]} ${p1[1]} L${p2[0]} ${p2[1]} Z`, class: cls }, parent);
+  }
+  function circleNode(id, x, y, r, label, cls = '') {
+    const g = el('g', { id, class: 'node ' + cls });
+    el('circle', { cx: x, cy: y, r: r + 16, class: 'glow' }, g);
+    el('circle', { cx: x, cy: y, r }, g);
+    txt(label, x, y, 'in', g, { 'font-size': Math.round(r * 0.62) });
+    return g;
+  }
+  function boxGlow(id, x, y, w, h, cls) {
+    const g = el('g', { id, class: 'boxg' });
+    el('rect', { x: x - 8, y: y - 8, width: w + 16, height: h + 16, rx: 22, class: 'glow' }, g);
+    el('rect', { x, y, width: w, height: h, rx: 16, class: cls }, g);
+    return g;
+  }
+
+  function buildDiagram() {
+    svg.innerHTML = '';
+    const N = S.N;
+    // boxes
+    const env = boxGlow('gEnv', 260, 20, 480, 72, 'box-env');
+    txt('Environment', 500, 58, 'env-title', env, { 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    boxGlow('gAgent', 80, 150, 840, 555, 'box-agent');
+    const crit = boxGlow('gCritic', 112, 178, 776, 212, 'box-mod');
+    txt('Critic', 870, 214, 'mod-title', crit, { 'text-anchor': 'end' });
+    const act = boxGlow('gActor', 112, 412, 776, 270, 'box-mod');
+    txt('Actor', 870, 448, 'mod-title', act, { 'text-anchor': 'end' });
+
+    // geometry
+    G.S1c = [210, 250]; G.S2c = [210, 335]; G.V = [480, 292]; G.TD = [735, 292];
+    G.S1a = [210, 490]; G.S2a = [210, 620];
+    const top = 452, bot = 668, sp = (bot - top) / N;
+    G.pi = Array.from({ length: N }, (_, i) => [560, top + sp * (i + 0.5)]);
+    G.pr = Math.min(26, sp * 0.36);
+    const R = 30;
+
+    // outer wires
+    const sx = 40;
+    wire([[260, 56], [sx, 56], [sx, G.S2a[1]]], 'wire', false);
+    for (const n of [G.S1c, G.S2c, G.S1a, G.S2a]) wire([[sx, n[1]], [n[0] - R - 1, n[1]]]);
+    P.state_c = [[260, 56], [sx, 56], [sx, G.S1c[1]], [G.S1c[0] - R, G.S1c[1]]];
+    P.state_a = [[260, 56], [sx, 56], [sx, G.S1a[1]], [G.S1a[0] - R, G.S1a[1]]];
+    dual('States (s)', 'Perception (posterior cortex)', 22, 380, 'lbl', svg, { transform: 'rotate(-90 22 380)', 'text-anchor': 'middle' });
+
+    P.reward = [[G.TD[0], 92], [G.TD[0], G.TD[1] - 44]];
+    G.rewardWire = wire(P.reward);
+    dual('Reward (r)', 'PPTN, habenula…', G.TD[0] - 12, 128, 'lbl', svg, { 'text-anchor': 'end' });
+
+    const ax = 960;
+    G.actWires = [];
+    G.pi.forEach((p, i) => {
+      P['act' + i] = [[p[0] + G.pr, p[1]], [ax, p[1]], [ax, 56], [740, 56]];
+      G.actWires.push(el('path', { d: pathD([[p[0] + G.pr, p[1]], [ax, p[1]]]), class: 'wire' }));
+    });
+    wire([[ax, G.pi[N - 1][1]], [ax, 56], [740, 56]]);
+    dual('Actions (a)', 'Action (motor cortex)', 982, 380, 'lbl', svg, { transform: 'rotate(-90 982 380)', 'text-anchor': 'middle' });
+
+    // critic internals
+    wire([[G.S2c[0] + R, G.S2c[1]], [G.V[0] - 34, G.V[1]]], 'wire dim');
+    G.wV = el('path', { d: pathD([[G.S1c[0] + R, G.S1c[1]], [G.V[0] - 34, G.V[1]]]), class: 'wire', style: 'stroke: var(--value)' });
+    P.S1V = [[G.S1c[0] + R, G.S1c[1]], [G.V[0] - 34, G.V[1]]];
+    wire([[G.V[0] + 34, G.V[1]], [G.TD[0] - 46, G.TD[1]]]);
+    P.VTD = [[G.V[0] + 34, G.V[1]], [G.TD[0] - 46, G.TD[1]]];
+    // TD self loop
+    el('path', { d: `M${G.TD[0] + 40} ${G.TD[1] - 14} a 20 20 0 1 1 0 28`, class: 'wire' });
+
+    // actor internals
+    G.wA = [];
+    G.pi.forEach((p, i) => {
+      wire([[G.S2a[0] + R, G.S2a[1]], [p[0] - G.pr, p[1]]], 'wire dim', false);
+      G.wA.push(el('path', { d: pathD([[G.S1a[0] + R, G.S1a[1]], [p[0] - G.pr, p[1]]]), class: 'wire', style: `stroke: ${aCol(i)}` }));
+      P['S1pi' + i] = [[G.S1a[0] + R, G.S1a[1]], [p[0] - G.pr, p[1]]];
+    });
+
+    // delta pathway
+    const dx = 340, dy = 402;
+    wire([[G.TD[0], G.TD[1] + 46], [G.TD[0], dy], [dx, dy]], 'wire delta', false);
+    wire([[dx, dy], [dx, 262]], 'wire delta');
+    wire([[dx, dy], [dx, 520]], 'wire delta');
+    P.delta_c = [[G.TD[0], G.TD[1] + 46], [G.TD[0], dy], [dx, dy], [dx, 262]];
+    P.delta_a = [[G.TD[0], G.TD[1] + 46], [G.TD[0], dy], [dx, dy], [dx, 520]];
+    dual('δ', 'Dopamine', G.TD[0] + 14, 380, 'lbl-b', svg, { style: 'fill: var(--delta); font-size: 22px' });
+
+    // nodes
+    G.nS1c = circleNode('nS1c', ...G.S1c, R, 'light');
+    G.nS2c = circleNode('nS2c', ...G.S2c, R, 'dark');
+    G.nS1a = circleNode('nS1a', ...G.S1a, R, 'light');
+    G.nS2a = circleNode('nS2a', ...G.S2a, R, 'dark');
+    G.nV = circleNode('nV', ...G.V, 34, 'V');
+    G.vTxt = txt('V = 0.00', G.V[0], G.V[1] + 58, 'mono', svg, { 'text-anchor': 'middle', 'font-size': 16 });
+    dual('', 'Ventral striatum', G.V[0], G.V[1] - 50, 'lbl-b', svg, { 'text-anchor': 'middle' });
+    dual('', 'Frontal cortex', G.S1c[0], 206, 'lbl-b', svg, { 'text-anchor': 'middle' });
+    dual('', 'Frontal cortex', G.S1a[0], 440, 'lbl-b', svg, { 'text-anchor': 'middle' });
+    // TD diamond
+    const tg = el('g', { id: 'nTD', class: 'node' });
+    el('circle', { cx: G.TD[0], cy: G.TD[1], r: 66, class: 'glow' }, tg);
+    el('path', { d: `M${G.TD[0]} ${G.TD[1] - 46} L${G.TD[0] + 46} ${G.TD[1]} L${G.TD[0]} ${G.TD[1] + 46} L${G.TD[0] - 46} ${G.TD[1]} Z`, class: 'nb' }, tg);
+    txt('TD', G.TD[0], G.TD[1], 'in comp-only', tg, { 'font-size': 18 });
+    txt('VTA', G.TD[0], G.TD[1] - 9, 'in brain-only', tg, { 'font-size': 14 });
+    txt('SNc', G.TD[0], G.TD[1] + 9, 'in brain-only', tg, { 'font-size': 14 });
+    G.nTD = tg;
+    G.nPi = []; G.piTxt = [];
+    G.pi.forEach((p, i) => {
+      const g = circleNode('nPi' + i, ...p, G.pr, LET[i]);
+      g.querySelector('circle:not(.glow)').style.stroke = aCol(i);
+      g.querySelector('circle:not(.glow)').style.strokeWidth = 3;
+      G.nPi.push(g);
+      G.piTxt.push(txt('', p[0] + G.pr + 12, p[1] - 8, 'mono', svg, { 'font-size': 14 }));
+    });
+    dual('', 'Dorsolateral striatum', 560, 437, 'lbl-b', svg, { 'text-anchor': 'middle' });
+    pulseLayer = el('g', { id: 'pulses' });
+    syncDiagram();
+  }
+
+  function syncDiagram() {
+    const pi = softmax(S.p, S.tau);
+    G.wV.setAttribute('stroke-width', 1.5 + 9 * Math.max(0, S.V));
+    G.wV.style.opacity = 0.35 + 0.65 * Math.min(1, Math.abs(S.V) + 0.05);
+    G.vTxt.textContent = 'V = ' + fmt(S.V);
+    G.nV.querySelector('circle:not(.glow)').style.fill = `color-mix(in srgb, var(--value) ${Math.round(Math.max(0, Math.min(1, S.V)) * 75)}%, var(--node))`;
+    G.wA.forEach((w, i) => w.setAttribute('stroke-width', 1.2 + 10 * pi[i]));
+    G.nPi.forEach((g, i) => { g.querySelector('circle:not(.glow)').style.fill = `color-mix(in srgb, ${aCol(i)} ${Math.round(pi[i] * 85)}%, var(--node))`; });
+    G.piTxt.forEach((t, i) => t.textContent = `${LET[i]} ${Math.round(pi[i] * 100)}%`);
+    const lit = S.phase >= 0 && S.phase < PH.length;
+    [G.nS1c, G.nS1a].forEach(n => n.classList.toggle('on', lit));
+    [G.nS2c, G.nS2a].forEach(n => n.classList.toggle('on', !lit));
+  }
+
+  function setHL(ids) {
+    svg.querySelectorAll('.hl').forEach(e => e.classList.remove('hl'));
+    ids.forEach(id => { const e = typeof id === 'string' ? $(id) : id; if (e) e.classList.add('hl'); });
+  }
+
+  // pulses
+  function pointAt(pts, t) {
+    const seg = []; let tot = 0;
+    for (let i = 0; i < pts.length - 1; i++) { const L = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]); seg.push(L); tot += L; }
+    let d = t * tot;
+    for (let i = 0; i < seg.length; i++) {
+      if (d <= seg[i] || i === seg.length - 1) { const k = seg[i] ? d / seg[i] : 0; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k]; }
+      d -= seg[i];
+    }
+  }
+  function pulse(pts, color, ms, r = 10) {
+    const run = S.run;
+    return new Promise(res => {
+      if (reduce || ms <= 0) { res(); return; }
+      const g = el('g', {}, pulseLayer);
+      const halo = el('circle', { r: r * 2.6, style: `fill: ${color}; opacity: .25` }, g);
+      const dot = el('circle', { r, style: `fill: ${color}; stroke: var(--node); stroke-width: 2.5` }, g);
+      const t0 = performance.now();
+      const tick = now => {
+        if (run !== S.run) { g.remove(); res(); return; }
+        const t = Math.min(1, (now - t0) / ms);
+        const e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const [x, y] = pointAt(pts, e);
+        halo.setAttribute('cx', x); halo.setAttribute('cy', y); dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+        if (t < 1) requestAnimationFrame(tick); else { g.remove(); res(); }
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  const wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
+  const T = ms => ms / S.speed;
+
+  // ------------------------------------------------------------------ task panel
+  function buildLevers() {
+    const box = $('levers'); box.innerHTML = '';
+    for (let i = 0; i < S.N; i++) {
+      const d = document.createElement('div');
+      d.className = 'lever'; d.id = 'lever' + i; d.style.setProperty('--c', aCol(i));
+      d.innerHTML = `<div class="slot"><div class="handle"></div></div><span class="name">${LET[i]}</span><span class="prob"></span>`;
+      box.appendChild(d);
+    }
+    syncReveal();
+  }
+  function syncReveal() {
+    const show = $('reveal').checked;
+    for (let i = 0; i < S.N; i++) {
+      const d = $('lever' + i);
+      d.classList.toggle('best', show && i === S.best);
+      d.querySelector('.prob').textContent = show ? `p(r)=${rewardProb(i)}` : '';
+    }
+  }
+  function chamber({ lit, pressed = -1, juice = false, tag = '' }) {
+    $('chamber').classList.toggle('lit', lit);
+    for (let i = 0; i < S.N; i++) $('lever' + i).classList.toggle('pressed', i === pressed);
+    $('cup').classList.toggle('full', juice);
+    const t = $('outcomeTag'); t.textContent = tag; t.classList.toggle('show', !!tag);
+  }
+
+  // ------------------------------------------------------------------ readouts
+  function buildPolicy() {
+    const box = $('policy'); box.innerHTML = '';
+    for (let i = 0; i < S.N; i++) {
+      const r = document.createElement('div');
+      r.className = 'prow'; r.style.setProperty('--c', aCol(i));
+      r.innerHTML = `<span class="lab">${LET[i]}</span><div class="bar"><i id="bar${i}"></i></div><span class="pc" id="pc${i}"></span><span class="pref" id="pf${i}"></span>`;
+      box.appendChild(r);
+    }
+    const leg = $('leg1');
+    leg.innerHTML = `<span style="--c: var(--ink)">V(light)</span>` + Array.from({ length: S.N }, (_, i) => `<span class="dash" style="--c:${aCol(i)}">π(${LET[i]})</span>`).join('');
+  }
+  function syncReadouts() {
+    const pi = softmax(S.p, S.tau);
+    $('vOut').textContent = fmt(S.V);
+    pi.forEach((v, i) => { $('bar' + i).style.width = (v * 100).toFixed(1) + '%'; $('pc' + i).textContent = Math.round(v * 100) + '%'; $('pf' + i).textContent = 'p=' + sgn(S.p[i]); });
+    $('trialLabel').textContent = 'Trial ' + S.trial;
+  }
+
+  // ------------------------------------------------------------------ explanation
+  function explain(title, text, eq = '', note = '') {
+    $('exTitle').textContent = title; $('exText').innerHTML = text; $('exEq').innerHTML = eq; $('exEq').hidden = !eq; $('exNote').textContent = note;
+  }
+  function syncPhases() {
+    $('phases').innerHTML = PH.map((p, i) => `<span class="phase ${i === S.phase ? 'now' : i < S.phase ? 'done' : ''}">${i + 1}. ${p.name}</span>`).join('');
+  }
+
+  // ------------------------------------------------------------------ trial logic
+  function sample(pi) { let u = Math.random(), c = 0; for (let i = 0; i < pi.length; i++) { c += pi[i]; if (u < c) return i; } return pi.length - 1; }
+  function startTrial() {
+    const pi = softmax(S.p, S.tau);
+    const a = sample(pi);
+    const r = Math.random() < rewardProb(a) ? 1 : 0;
+    S.cur = { trial: S.trial, Vb: S.V, pib: pi, pb: S.p.slice(), a, r, dcue: S.V - 0, dout: r - S.V };
+  }
+  function finishTrial(c) {
+    S.V = c.Vb + S.alpha * c.dout;
+    S.p = c.pb.slice(); S.p[c.a] += S.beta * c.dout;
+    c.Va = S.V; c.pia = softmax(S.p, S.tau);
+    S.history.push(c);
+    S.trial++;
+  }
+
+  async function runPhase(i) {
+    const c = S.cur; const run = S.run;
+    S.phase = i; syncPhases();
+    const name = LET[c.a];
+    switch (PH[i].key) {
+      case 'light':
+        chamber({ lit: true }); syncDiagram(); traceTo(0); setHL(['nS1c', 'nS1a']);
+        explain('The light turns on', 'The environment changes state from <b>dark</b> to <b>light</b>. That new state is sent to both the critic and the actor.',
+          `state: dark → light`, 'The light comes on at unpredictable times, so being in the dark predicts nothing: V(dark) = 0.');
+        await Promise.all([pulse(P.state_c, css('--state'), T(900)), pulse(P.state_a, css('--state'), T(900))]);
+        traceTo(0.25, 0);
+        break;
+      case 'value':
+        setHL(['nS1c', 'nV']);
+        explain('The critic predicts', 'The critic reads the light unit through its learned weight. The result, V(light), is how much reward it expects to follow the light.',
+          `<span class="v">V(light)</span> = w × 1 = <span class="v">${fmt(c.Vb)}</span>`, c.trial === 1 ? 'On the first trial the weight is zero, so the critic expects nothing.' : 'The thicker the light → V connection, the more reward the critic expects.');
+        await pulse(P.S1V, css('--state'), T(700));
+        break;
+      case 'cue':
+        setHL(['nV', 'nTD']);
+        explain('Prediction error at the light', 'TD compares the new prediction with the old one. Moving from dark (worth 0) to light (worth V) is good news if V is above zero, so δ fires right at the light, before any reward arrives.',
+          `<span class="d">δ</span> = r + <span class="v">V(light)</span> − V(dark) = 0 + ${fmt(c.Vb)} − 0 = <span class="d">${sgn(c.dcue)}</span>`,
+          'As learning proceeds, this cue response grows. This is the transfer of the dopamine response from reward to cue.');
+        await pulse(P.VTD, css('--state'), T(600));
+        $('dOut').textContent = sgn(c.dcue);
+        await traceTo(0.42, T(500));
+        break;
+      case 'policy': {
+        setHL(['nS1a', ...G.nPi]);
+        const terms = c.pb.map((p, k) => `e<sup>${fmt(p)}/${S.tau.toFixed(1)}</sup>`).join(' + ');
+        explain('The actor weighs its options', 'Each action unit gets a preference p from its connection with the light. A softmax turns preferences into choice probabilities.',
+          `π(a) = e<sup>p(a)/τ</sup> / (${terms})<br>π = [${c.pib.map((v, k) => `${LET[k]} ${fmt(v)}`).join(', ')}]`,
+          'Higher τ (temperature) makes choices more random; lower τ makes the actor greedier.');
+        await Promise.all(G.pi.map((_, k) => pulse(P['S1pi' + k], css('--state'), T(800), 8)));
+        break; }
+      case 'act':
+        setHL([G.nPi[c.a]]);
+        explain(`The actor chooses ${name}`, `The actor samples an action from π. This time it picks <b style="color:${aCol(c.a)}">lever ${name}</b>, which it chose with probability ${fmt(c.pib[c.a])}.`,
+          `a ~ π  →  a = ${name}   (π(${name}) = ${fmt(c.pib[c.a])})`, 'Sampling (rather than always taking the top option) lets the agent keep exploring.');
+        await pulse(P['act' + c.a], css(`--a${c.a}`), T(1000), 11);
+        chamber({ lit: true, pressed: c.a });
+        await wait(T(250));
+        break;
+      case 'outcome':
+        setHL(['nTD']);
+        chamber({ lit: true, pressed: c.a, juice: c.r === 1, tag: c.r ? 'Juice! r = 1' : 'Nothing. r = 0' });
+        explain(c.r ? 'Reward arrives' : 'No reward', `Lever ${name} ${c.r ? 'delivers juice' : 'delivers nothing'}. The reward signal travels from the environment to the TD unit.`,
+          `<span class="r">r = ${c.r}</span>`, S.prob ? `Rewards are probabilistic: lever ${name} pays off ${Math.round(rewardProb(c.a) * 100)}% of the time.` : '');
+        await pulse(P.reward, c.r ? css('--reward') : css('--muted'), T(800), 12);
+        break;
+      case 'delta': {
+        setHL(['nTD']);
+        const word = c.dout > 0.005 ? 'better than expected' : c.dout < -0.005 ? 'worse than expected' : 'exactly as expected';
+        explain('Prediction error at the outcome', `The trial is over, so the next state is worth 0. The critic expected ${fmt(c.Vb)} and received ${c.r}: the outcome was <b>${word}</b>.`,
+          `<span class="d">δ</span> = <span class="r">r</span> + V(end) − <span class="v">V(light)</span> = ${c.r} + 0 − ${fmt(c.Vb)} = <span class="d">${sgn(c.dout)}</span>`,
+          c.dout > 0.005 ? 'Positive δ: a burst of dopamine.' : c.dout < -0.005 ? 'Negative δ: a dip in dopamine below baseline.' : 'δ near zero: dopamine stays at baseline.');
+        $('dOut').textContent = sgn(c.dout);
+        await traceTo(0.8, T(600));
+        break; }
+      case 'learn': {
+        setHL(['nV', G.nPi[c.a], 'nTD']);
+        const Vn = c.Vb + S.alpha * c.dout, pn = c.pb[c.a] + S.beta * c.dout;
+        explain('δ teaches both', `The same error signal is broadcast to the critic and to the actor. The critic adjusts its prediction; the actor adjusts its preference for the action it just took (${name}).`,
+          `<span class="v">V(light)</span> ← ${fmt(c.Vb)} + α·δ = ${fmt(c.Vb)} + ${S.alpha.toFixed(2)}×(${sgn(c.dout)}) = <span class="v">${fmt(Vn)}</span><br>p(${name}) ← ${sgn(c.pb[c.a])} + β·δ = ${sgn(c.pb[c.a])} + ${S.beta.toFixed(1)}×(${sgn(c.dout)}) = ${sgn(pn)}`,
+          c.dout > 0.005 ? 'Better than expected: predict more, and do that again.' : c.dout < -0.005 ? 'Worse than expected: predict less, and do that less.' : 'No surprise, so nothing changes.');
+        await Promise.all([pulse(P.delta_c, css('--delta'), T(900), 12), pulse(P.delta_a, css('--delta'), T(900), 12)]);
+        if (run !== S.run) return;
+        finishTrial(c);
+        syncDiagram(); syncReadouts(); drawCharts();
+        S.trial--; $('trialLabel').textContent = 'Trial ' + c.trial; S.trial++;
+        await traceTo(1, T(300));
+        break; }
+    }
+  }
+
+  async function step() {
+    if (S.busy) return;
+    S.busy = true; setBusy(true);
+    const run = S.run;
+    if (S.phase === -1 || S.phase >= PH.length - 1) {
+      if (S.phase >= PH.length - 1) endTrialVisuals();
+      startTrial(); S.phase = -1;
+    }
+    await runPhase(S.phase + 1);
+    if (run !== S.run) return;
+    S.busy = false; setBusy(false);
+  }
+  function endTrialVisuals() {
+    chamber({ lit: false }); trace = { c: 0, cue: 0, out: 0 };
+    S.phase = -1; syncDiagram(); syncReadouts(); setHL([]); drawTrace();
+  }
+  async function playTrial() {
+    if (S.busy) return;
+    const run = S.run;
+    do {
+      await step();
+      if (run !== S.run) return;
+      await wait(T(450));
+    } while (S.phase < PH.length - 1 && run === S.run);
+  }
+  async function autoLoop() {
+    while (S.auto) {
+      await playTrial();
+      if (!S.auto) break;
+      await wait(T(700));
+    }
+  }
+  function fastTrials(n) {
+    if (S.busy) return;
+    cancel();
+    if (S.phase !== -1) endTrialVisuals();
+    for (let k = 0; k < n; k++) { startTrial(); finishTrial(S.cur); }
+    const c = S.history[S.history.length - 1];
+    trace = { c: 1, cue: c.dcue, out: c.dout };
+    $('dOut').textContent = sgn(c.dout);
+    syncDiagram(); syncReadouts(); drawCharts(); drawTrace(); syncPhases();
+    explain(`Ran ${n} trials`, `The agent has now completed ${S.history.length} trials. Look at the charts below: V(light) and the probability of the best action climb, δ at the outcome shrinks, and δ at the light grows.`,
+      `V(light) = ${fmt(S.V)}    π = [${softmax(S.p, S.tau).map((v, k) => `${LET[k]} ${fmt(v)}`).join(', ')}]`, 'The trace above shows the last of those trials. Press “Next step” to watch the next one in detail.');
+  }
+  function setBusy(b) { $('stepBtn').disabled = b && !S.auto; $('trialBtn').disabled = b || S.auto; $('fastBtn').disabled = S.auto; }
+  function cancel() { S.run++; S.busy = false; pulseLayer && (pulseLayer.innerHTML = ''); }
+
+  function reset(newN) {
+    cancel(); S.auto = false; $('autoBtn').setAttribute('aria-pressed', 'false'); $('autoBtn').textContent = 'Auto-run';
+    if (newN) S.N = newN;
+    S.best = Math.floor(Math.random() * S.N);
+    S.V = 0; S.p = Array(S.N).fill(0); S.trial = 1; S.phase = -1; S.history = []; S.cur = null;
+    trace = { c: 0, cue: 0, out: 0 };
+    buildDiagram(); buildLevers(); buildPolicy(); chamber({ lit: false });
+    syncReadouts(); syncPhases(); drawCharts(); drawTrace(); setBusy(false);
+    $('dOut').textContent = '–';
+    explain('A new task', `There are <b>${S.N} levers</b>. One of them, chosen at random, is the best. The agent starts knowing nothing: V(light) = 0 and every lever is equally likely (${Math.round(100 / S.N)}% each).`,
+      '', 'Press “Next step” to go through a trial one stage at a time, or “Play trial” to watch a whole trial.');
+  }
+
+  // ------------------------------------------------------------------ within-trial trace
+  let trace = { c: 0, cue: 0, out: 0 };
+  function traceTo(target, ms = 0) {
+    if (S.cur) { trace.cue = S.cur.dcue; trace.out = S.cur.dout; }
+    const start = trace.c, run = S.run;
+    return new Promise(res => {
+      if (ms <= 0 || reduce) { trace.c = target; drawTrace(); res(); return; }
+      const t0 = performance.now();
+      const tick = now => {
+        if (run !== S.run) { res(); return; }
+        const t = Math.min(1, (now - t0) / ms);
+        trace.c = start + (target - start) * t; drawTrace();
+        if (t < 1) requestAnimationFrame(tick); else res();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  function fitCanvas(cv) {
+    const dpr = window.devicePixelRatio || 1; const w = cv.clientWidth; const h = +cv.getAttribute('height');
+    cv.style.height = h + 'px';
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    return [ctx, w, h];
+  }
+  function trY(t, cue, out) {
+    const g = (x, s) => Math.exp(-0.5 * (x / s) ** 2);
+    let v = 0.03 * (Math.sin(t * 91) + 0.6 * Math.sin(t * 213 + 1.3));
+    if (t > 0.25) v += cue * g(t - 0.31, cue >= 0 ? 0.02 : 0.035);
+    v += out * g(t - 0.71, out >= 0 ? 0.02 : 0.035);
+    return v;
+  }
+  function drawTrace() {
+    const cv = $('traceCv'); const [ctx, w, h] = fitCanvas(cv);
+    const x0 = 10, x1 = w - 10, yb = h * 0.5, amp = h * 0.36;
+    ctx.font = `12px ${css('--font-body')}`; ctx.fillStyle = css('--muted'); ctx.textAlign = 'center';
+    ctx.strokeStyle = css('--line'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x0, yb); ctx.lineTo(x1, yb); ctx.stroke();
+    ctx.setLineDash([4, 4]);
+    for (const [t, lab] of [[0.3, 'light on'], [0.7, 'outcome']]) {
+      const x = x0 + (x1 - x0) * t; ctx.beginPath(); ctx.moveTo(x, 8); ctx.lineTo(x, h - 20); ctx.stroke(); ctx.fillText(lab, x, h - 5);
+    }
+    ctx.setLineDash([]);
+    if (trace.c <= 0) return;
+    ctx.strokeStyle = css('--delta'); ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
+    const n = Math.max(2, Math.round(240 * trace.c));
+    for (let i = 0; i < n; i++) {
+      const t = trace.c * i / (n - 1); const x = x0 + (x1 - x0) * t; const y = yb - amp * trY(t, trace.cue, trace.out);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // ------------------------------------------------------------------ charts
+  function axes(ctx, w, h, ymin, ymax, nT, pad) {
+    const X = t => pad.l + (w - pad.l - pad.r) * (nT <= 1 ? 0 : (t - 1) / (nT - 1));
+    const Y = v => pad.t + (h - pad.t - pad.b) * (1 - (v - ymin) / (ymax - ymin));
+    ctx.strokeStyle = css('--line'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1;
+    ctx.font = `12px ${css('--font-mono')}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const ticks = ymin < 0 ? [-1, -0.5, 0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1];
+    for (const v of ticks) { ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(w - pad.r, Y(v)); ctx.globalAlpha = v === 0 ? 1 : 0.5; ctx.stroke(); ctx.globalAlpha = 1; ctx.fillText(v.toFixed(v % 1 ? 2 : 0).replace('.00', ''), pad.l - 6, Y(v)); }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const step = nT <= 10 ? 1 : nT <= 30 ? 5 : nT <= 100 ? 10 : 25;
+    for (let t = 1; t <= nT; t++) if (t === 1 || t % step === 0) ctx.fillText(t, X(t), h - pad.b + 6);
+    ctx.fillText('trial', (pad.l + w - pad.r) / 2, h - 16);
+    return [X, Y];
+  }
+  function line(ctx, X, Y, vals, color, width = 2.5, dash = []) {
+    if (!vals.length) return;
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.beginPath();
+    vals.forEach((v, i) => i ? ctx.lineTo(X(i + 1), Y(v)) : ctx.moveTo(X(1), Y(v)));
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = color;
+    if (vals.length <= 60) vals.forEach((v, i) => { ctx.beginPath(); ctx.arc(X(i + 1), Y(v), 3, 0, 7); ctx.fill(); });
+  }
+  function drawCharts() {
+    const H = S.history; const nT = Math.max(10, H.length);
+    const pad = { l: 42, r: 12, t: 10, b: 40 };
+    { const [ctx, w, h] = fitCanvas($('cv1')); const [X, Y] = axes(ctx, w, h, 0, 1, nT, pad);
+      for (let k = 0; k < S.N; k++) line(ctx, X, Y, H.map(c => c.pia[k]), css('--a' + k), k === S.best && $('reveal').checked ? 3.5 : 2, [6, 4]);
+      line(ctx, X, Y, H.map(c => c.Va), css('--ink'), 3);
+      if (!H.length) { ctx.fillStyle = css('--muted'); ctx.textAlign = 'center'; ctx.font = `13px ${css('--font-body')}`; ctx.fillText('Values after each trial appear here', w / 2, h / 2 - 12); } }
+    { const [ctx, w, h] = fitCanvas($('cv2')); const [X, Y] = axes(ctx, w, h, -1, 1, nT, pad);
+      line(ctx, X, Y, H.map(c => c.dcue), css('--cue'), 2.5);
+      line(ctx, X, Y, H.map(c => c.dout), css('--delta'), 2.5);
+      if (!H.length) { ctx.fillStyle = css('--muted'); ctx.textAlign = 'center'; ctx.font = `13px ${css('--font-body')}`; ctx.fillText('δ at the light and at the outcome, per trial', w / 2, h / 2 - 12); } }
+  }
+
+  // ------------------------------------------------------------------ wiring
+  $('nseg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    $('nseg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    reset(+b.dataset.n);
+  });
+  $('stepBtn').addEventListener('click', step);
+  $('trialBtn').addEventListener('click', playTrial);
+  $('autoBtn').addEventListener('click', () => {
+    S.auto = !S.auto; $('autoBtn').setAttribute('aria-pressed', S.auto); $('autoBtn').textContent = S.auto ? 'Stop' : 'Auto-run';
+    setBusy(S.busy);
+    if (S.auto) autoLoop();
+  });
+  $('fastBtn').addEventListener('click', () => fastTrials(10));
+  $('resetBtn').addEventListener('click', () => reset());
+  $('speed').addEventListener('input', e => { S.speed = +e.target.value; $('speedOut').textContent = S.speed + '×'; });
+  $('reveal').addEventListener('change', () => { syncReveal(); drawCharts(); });
+  $('brainView').addEventListener('change', e => $('diagramPanel').classList.toggle('brain', e.target.checked));
+  const bindSlider = (id, key, d) => $(id).addEventListener('input', e => { S[key] = +e.target.value; $(id + 'Out').textContent = S[key].toFixed(d); syncDiagram(); syncReadouts(); });
+  bindSlider('alpha', 'alpha', 2); bindSlider('beta', 'beta', 1); bindSlider('tau', 'tau', 1);
+  $('probMode').addEventListener('change', e => { S.prob = e.target.checked; syncReveal(); });
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input, textarea')) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); step(); }
+  });
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { drawCharts(); drawTrace(); }, 120); });
+  new MutationObserver(() => { drawCharts(); drawTrace(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { drawCharts(); drawTrace(); });
+  document.fonts && document.fonts.ready.then(() => { drawCharts(); drawTrace(); });
+
+  // initial working state: a 3-lever task with a few trials already run, so the charts show something
+  for (let tries = 0; tries < 40; tries++) {
+    reset(3);
+    for (let k = 0; k < 6; k++) { startTrial(); finishTrial(S.cur); }
+    const wins = S.history.filter(c => c.r).length;
+    if (wins >= 2 && S.history[0].r === 0) break;
+  }
+  { const c = S.history[5]; trace = { c: 1, cue: c.dcue, out: c.dout }; $('dOut').textContent = sgn(c.dout); drawTrace(); }
+  syncDiagram(); syncReadouts(); drawCharts();
+  explain('A 3-lever task, 6 trials in', 'One of the three levers is secretly the best. The agent has already practised for 6 trials; the charts below show what it has learned so far. Press “Next step” to watch trial 7 stage by stage, or change the number of actions to start over.',
+    `V(light) = ${fmt(S.V)}    π = [${softmax(S.p, S.tau).map((v, k) => `${LET[k]} ${fmt(v)}`).join(', ')}]`, 'Shortcut: the right-arrow key advances one step.');
+})();
+</script>
+
+</body>
+</html>
