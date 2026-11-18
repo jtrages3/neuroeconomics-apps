@@ -320,9 +320,30 @@
     return s + `</svg>`;
   }
 
+  // ---------- Save this student's acceptance rates to Firestore ----------
+  // One anonymous record per completed game: acceptance rate (0-100) for each
+  // offer type, split by human vs. computer partner. "play" counts repeat
+  // plays from the same browser so the instructor can keep first plays only.
+  const FIRESTORE_URL = "https://firestore.googleapis.com/v1/projects/neuroecon-ultimatum/databases/(default)/documents/ultimatum?key=AIzaSyA8bQk3aWSNqb9y7fAAbFMNf1AGbDUiZlk";
+  function saveResults(){
+    let play = 1;
+    try { play = (+localStorage.getItem("ug_plays") || 0) + 1; localStorage.setItem("ug_plays", play); } catch {}
+    const rates = type => ({ mapValue: { fields: {
+      o55: { integerValue: String(rate(type,5)) }, o73: { integerValue: String(rate(type,3)) },
+      o82: { integerValue: String(rate(type,2)) }, o91: { integerValue: String(rate(type,1)) } } } });
+    const body = { fields: {
+      human: rates("human"), computer: rates("computer"),
+      play: { integerValue: String(play) },
+      created: { timestampValue: new Date().toISOString() } } };
+    fetch(FIRESTORE_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) })
+      .then(r => { if (!r.ok) console.warn("Save failed", r.status); })
+      .catch(e => console.warn("Save failed", e));
+  }
+
   function showResults(){
     $("results").classList.remove("hidden");
     window.scrollTo(0,0);
+    saveResults();
 
     const unfair = t => t.offer < 5 && t.type !== "control";
     const rejHuman = trials.filter(t=>t.type==="human" && unfair(t) && t.choice==="reject").length;
