@@ -27,9 +27,6 @@
   button:disabled{opacity:.4;cursor:default}
   label{display:block;font-weight:500;margin:10px 0 4px}
   input[type=text],select{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:8px;width:100%;max-width:360px;background:#fff}
-  .radio-row{display:flex;gap:10px;flex-wrap:wrap}
-  .radio-row label{display:flex;gap:8px;align-items:flex-start;font-weight:400;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;flex:1;min-width:220px;margin:0}
-  .radio-row input{margin-top:4px}
   .partners{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin:14px 0}
   .partner{text-align:center;font-size:.9rem}
   .avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;color:#fff;font-weight:600;font-size:1.3rem;font-family:"Source Serif 4",serif}
@@ -97,14 +94,9 @@
   </div>
 
   <div class="card">
-    <h2>Setup</h2>
-
-    <label>Timing</label>
-    <div class="radio-row">
-      <label><input type="radio" name="timing" value="class" checked><span><strong>Classroom</strong><br><span class="small muted">Quick pacing, about 3 minutes total.</span></span></label>
-      <label><input type="radio" name="timing" value="scanner"><span><strong>Scanner timing</strong><br><span class="small muted">The paper's 36-second rounds (12 s fixation, 6 s partner, 6 s offer, 6 s decide, 6 s outcome) — about 12 minutes.</span></span></label>
-    </div>
-    <p class="small muted" style="margin-top:14px">Respond with the on-screen buttons, or press <strong>F</strong> to accept and <strong>J</strong> to reject.</p>
+    <h2>Ready?</h2>
+    <p>The game takes about 3–4 minutes.</p>
+    <p class="small muted">Respond with the on-screen buttons, or press <strong>F</strong> to accept and <strong>J</strong> to reject.</p>
     <div style="margin-top:18px"><button class="primary" id="startBtn">Begin the game</button></div>
   </div>
 </section>
@@ -157,10 +149,7 @@
     {name:"Ryan", color:"#8a5a3c"}
   ];
 
-  const TIMING = {
-    class:   { fix:900,  partner:1500, offer:1500, outcome:1600 },
-    scanner: { fix:12000, partner:6000, offer:6000, outcome:6000 }
-  };
+  const TIMING = { fix:900, partner:1500, offer:1500, outcome:1600 };
 
   const $ = id => document.getElementById(id);
   const initials = n => n.slice(0,1);
@@ -286,7 +275,7 @@
   }
 
   $("startBtn").onclick = () => {
-    timing = TIMING[document.querySelector('input[name=timing]:checked').value];
+    timing = TIMING;
     trials = buildTrials();
     earnings = 0;
     runGame();
