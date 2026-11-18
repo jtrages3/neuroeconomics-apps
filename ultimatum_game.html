@@ -131,12 +131,10 @@
 
   <div class="card">
     <h2>Acceptance rate by offer</h2>
-    <p class="muted small">Your choices compared with the 19 participants in Sanfey et al. (2003), Fig. 1B. Paper values are approximate, read from the published bar chart.</p>
+    <p class="muted small">Percent of offers you accepted, by offer and by partner.</p>
     <div class="legend">
-      <span><i class="sw" style="background:var(--human)"></i>You · human partners</span>
-      <span><i class="sw" style="background:var(--computer)"></i>You · computer</span>
-      <span><i class="sw" style="border:2px solid var(--human);background:#fff"></i>Paper · human</span>
-      <span><i class="sw" style="border:2px solid var(--computer);background:#fff"></i>Paper · computer</span>
+      <span><i class="sw" style="background:var(--human)"></i>Human partners</span>
+      <span><i class="sw" style="background:var(--computer)"></i>Computer</span>
     </div>
     <div id="chart"></div>
     <div id="resTable" style="margin-top:14px"></div>
@@ -152,8 +150,6 @@
   // Same offer set for human and computer partners: five $5:$5, one $7:$3, two $8:$2, two $9:$1.
   // Offers below are "amount offered to the responder".
   const OFFER_SET = [5,5,5,5,5,3,2,2,1,1];
-  // Approximate acceptance rates from Fig. 1B (percent).
-  const PAPER = { human:{5:100,3:95,2:53,1:40}, computer:{5:100,3:95,2:84,1:67} };
 
   const PARTNERS = [
     {name:"Kelly", color:"#6d5a8a"}, {name:"Marcus", color:"#2e6f73"}, {name:"Priya", color:"#9b4d5f"},
@@ -305,7 +301,7 @@
   function chartSVG(){
     const offers = [5,3,2,1], labels = {5:"$5:$5",3:"$7:$3",2:"$8:$2",1:"$9:$1"};
     const W=760,H=320,pl=46,pr=10,pt=14,pb=44, iw=W-pl-pr, ih=H-pt-pb;
-    const gw = iw/offers.length, bw = Math.min(30, gw/5.6);
+    const gw = iw/offers.length, bw = Math.min(56, gw/3.2);
     const y = v => pt + ih - ih*v/100;
     let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Acceptance rate by offer">`;
     for (let v=0; v<=100; v+=25){
@@ -313,18 +309,16 @@
       s += `<text x="${pl-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#6b6b70">${v}%</text>`;
     }
     const series = [
-      {k:"human", you:true, c:"#1f4e79"}, {k:"computer", you:true, c:"#c0692b"},
-      {k:"human", you:false, c:"#1f4e79"}, {k:"computer", you:false, c:"#c0692b"}
+      {k:"human", c:"#1f4e79"}, {k:"computer", c:"#c0692b"}
     ];
     offers.forEach((o,gi) => {
-      const gx = pl + gi*gw + (gw - bw*4 - 6*3)/2;
+      const gx = pl + gi*gw + (gw - bw*2 - 6)/2;
       series.forEach((ser,si) => {
-        const v = ser.you ? rate(ser.k,o) : PAPER[ser.k][o];
+        const v = rate(ser.k,o);
         const x = gx + si*(bw+6);
         const h = ih*v/100;
-        const tip = `${ser.you?"You":"Paper"} · ${ser.k} · ${labels[o]}: ${v}%`;
-        if (ser.you) s += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${Math.max(h,1)}" rx="3" fill="${ser.c}"><title>${tip}</title></rect>`;
-        else s += `<rect x="${x+1}" y="${y(v)+1}" width="${bw-2}" height="${Math.max(h-2,1)}" rx="3" fill="#fff" stroke="${ser.c}" stroke-width="2"><title>${tip}</title></rect>`;
+        const tip = `${ser.k === "human" ? "Human" : "Computer"} partner · ${labels[o]}: ${v}%`;
+        s += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${Math.max(h,1)}" rx="3" fill="${ser.c}"><title>${tip}</title></rect>`;
         s += `<text x="${x+bw/2}" y="${y(v)-4}" text-anchor="middle" font-size="10" fill="#6b6b70">${v}</text>`;
       });
       s += `<text x="${pl + gi*gw + gw/2}" y="${H-20}" text-anchor="middle" font-size="13" fill="#1d1d1f" font-weight="600">${labels[o]}</text>`;
@@ -375,9 +369,9 @@
 
     const offers=[5,3,2,1], labels={5:"$5:$5 (fair)",3:"$7:$3",2:"$8:$2",1:"$9:$1"};
     const rtFor = (type, cond) => { const m = mean(trials.filter(t=>t.type===type && cond(t)).map(t=>t.rt)); return m==null?"—":Math.round(m)+" ms"; };
-    let tb = `<table><thead><tr><th>Offer</th><th>You · human</th><th>Paper · human</th><th>You · computer</th><th>Paper · computer</th></tr></thead><tbody>`;
+    let tb = `<table><thead><tr><th>Offer</th><th>Human partners</th><th>Computer</th></tr></thead><tbody>`;
     offers.forEach(o => {
-      tb += `<tr><td>${labels[o]}</td><td>${rate("human",o)}%</td><td class="muted">~${PAPER.human[o]}%</td><td>${rate("computer",o)}%</td><td class="muted">~${PAPER.computer[o]}%</td></tr>`;
+      tb += `<tr><td>${labels[o]}</td><td>${rate("human",o)}%</td><td>${rate("computer",o)}%</td></tr>`;
     });
     tb += `</tbody></table>
       <p class="small muted" style="margin-top:10px">Mean decision time — fair offers: human ${rtFor("human",t=>t.offer===5)}, computer ${rtFor("computer",t=>t.offer===5)} · unfair offers: human ${rtFor("human",t=>t.offer<5)}, computer ${rtFor("computer",t=>t.offer<5)}</p>
