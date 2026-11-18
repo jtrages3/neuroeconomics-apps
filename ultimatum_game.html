@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ultimatum Game — Sanfey et al. (2003) Replication</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e2ded5;
+    --human:#1f4e79; --computer:#c0692b; --control:#5b7d4a; --accept:#2f7d4f; --reject:#b23a3a;
+    --paper:#9a9a9a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.5}
+  main{max-width:880px;margin:0 auto;padding:28px 20px 60px}
+  h1,h2,h3{font-family:"Source Serif 4",Georgia,serif;font-weight:600;line-height:1.2;margin:0 0 .5em}
+  h1{font-size:2rem} h2{font-size:1.4rem} h3{font-size:1.1rem}
+  p{margin:.4em 0 .9em}
+  .eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;color:var(--muted);font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;margin:18px 0}
+  .muted{color:var(--muted)}
+  .small{font-size:.875rem}
+  button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#fff;padding:10px 18px;font-weight:500}
+  button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  button:disabled{opacity:.4;cursor:default}
+  label{display:block;font-weight:500;margin:10px 0 4px}
+  input[type=text],select{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:8px;width:100%;max-width:360px;background:#fff}
+  .radio-row{display:flex;gap:10px;flex-wrap:wrap}
+  .radio-row label{display:flex;gap:8px;align-items:flex-start;font-weight:400;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;flex:1;min-width:220px;margin:0}
+  .radio-row input{margin-top:4px}
+  .partners{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin:14px 0}
+  .partner{text-align:center;font-size:.9rem}
+  .avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;color:#fff;font-weight:600;font-size:1.3rem;font-family:"Source Serif 4",serif}
+
+  /* Game stage */
+  #stage{background:#111;color:#f2f2f2;border-radius:16px;min-height:430px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;position:relative;text-align:center}
+  #stage .bar{position:absolute;top:14px;left:18px;right:18px;display:flex;justify-content:space-between;font-size:.8rem;color:#9a9a9a}
+  #stage .phase{position:absolute;bottom:14px;left:0;right:0;font-size:.75rem;color:#777;letter-spacing:.08em;text-transform:uppercase}
+  .fix{font-size:4rem;font-weight:300}
+  .big-avatar{width:120px;height:120px;font-size:2.4rem;margin-bottom:10px}
+  .offer{display:flex;gap:40px;justify-content:center;margin:18px 0 6px}
+  .offer div{font-size:1.15rem}
+  .offer strong{display:block;font-size:2.6rem;font-family:"Source Serif 4",serif}
+  .choices{display:flex;gap:16px;margin-top:22px}
+  .choices button{min-width:150px;padding:14px 20px;font-size:1.05rem;border:none;color:#fff}
+  .choices .acc{background:var(--accept)} .choices .rej{background:var(--reject)} .choices .col{background:var(--control)}
+  .keys{font-size:.78rem;color:#888;margin-top:10px}
+  .outcome strong{font-size:2rem;font-family:"Source Serif 4",serif}
+  .tag{display:inline-block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:99px;margin-bottom:12px}
+  .dots::after{content:"";animation:dots 1.4s steps(4,end) infinite}
+  @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+  .wheel{animation:spin 1.2s ease-out}
+  @keyframes spin{from{transform:rotate(-540deg)}to{transform:rotate(0)}}
+
+  table{border-collapse:collapse;width:100%;font-size:.92rem}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+  .stat{background:var(--bg);border-radius:10px;padding:14px}
+  .stat .v{font-size:1.6rem;font-family:"Source Serif 4",serif;font-weight:600}
+  .stat .l{font-size:.8rem;color:var(--muted)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;margin:6px 0 4px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  textarea{width:100%;height:120px;font-family:ui-monospace,monospace;font-size:.78rem;border:1px solid var(--line);border-radius:8px;padding:8px}
+  .hidden{display:none!important}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .callout{border-left:4px solid var(--human);background:#eef3f8;padding:12px 16px;border-radius:0 10px 10px 0;margin:12px 0}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ============ INTRO ============ -->
+<section id="intro">
+  <div class="eyebrow">Neuroeconomics · In-class experiment</div>
+  <h1>The Ultimatum Game</h1>
+  <p class="muted">Based on Sanfey, Rilling, Aronson, Nystrom &amp; Cohen (2003), <em>Science</em> 300:1755–1758.</p>
+
+  <div class="card">
+    <h2>How the game works</h2>
+    <p>Each round, a partner has <strong>$10</strong> to split with you. They propose how much they keep and how much you get. You decide:</p>
+    <ul>
+      <li><strong>Accept</strong> — the money is split as proposed.</li>
+      <li><strong>Reject</strong> — <em>neither</em> of you gets anything.</li>
+    </ul>
+    <p>You will play <strong>20 rounds</strong>: once with each of 10 people and 10 rounds with a computer, in random order. Each game with a person is a single, one-time interaction — your decision will not be shown to the other partners and cannot affect their offers.</p>
+  </div>
+
+  <div class="card">
+    <h2>Meet your partners</h2>
+    <p class="muted small">You'll play one round with each of these people.</p>
+    <div class="partners" id="partnerGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>Setup</h2>
+
+    <label>Timing</label>
+    <div class="radio-row">
+      <label><input type="radio" name="timing" value="class" checked><span><strong>Classroom</strong><br><span class="small muted">Quick pacing, about 3 minutes total.</span></span></label>
+      <label><input type="radio" name="timing" value="scanner"><span><strong>Scanner timing</strong><br><span class="small muted">The paper's 36-second rounds (12 s fixation, 6 s partner, 6 s offer, 6 s decide, 6 s outcome) — about 12 minutes.</span></span></label>
+    </div>
+    <p class="small muted" style="margin-top:14px">Respond with the on-screen buttons, or press <strong>F</strong> to accept and <strong>J</strong> to reject.</p>
+    <div style="margin-top:18px"><button class="primary" id="startBtn">Begin the game</button></div>
+  </div>
+</section>
+
+<!-- ============ GAME ============ -->
+<section id="game" class="hidden">
+  <div id="stage"></div>
+</section>
+
+
+<!-- ============ RESULTS ============ -->
+<section id="results" class="hidden">
+  <div class="eyebrow">Results</div>
+  <h1>Your results</h1>
+
+  <div class="card">
+    <div class="stats" id="statTiles"></div>
+  </div>
+
+  <div class="card">
+    <h2>Acceptance rate by offer</h2>
+    <p class="muted small">Your choices compared with the 19 participants in Sanfey et al. (2003), Fig. 1B. Paper values are approximate, read from the published bar chart.</p>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--human)"></i>You · human partners</span>
+      <span><i class="sw" style="background:var(--computer)"></i>You · computer</span>
+      <span><i class="sw" style="border:2px solid var(--human);background:#fff"></i>Paper · human</span>
+      <span><i class="sw" style="border:2px solid var(--computer);background:#fff"></i>Paper · computer</span>
+    </div>
+    <div id="chart"></div>
+    <div id="resTable" style="margin-top:14px"></div>
+  </div>
+  <div class="row"><button id="againBtn">Play again</button></div>
+</section>
+
+</main>
+
+<script>
+(() => {
+  // ---------- Design from Sanfey et al. 2003 ----------
+  // Same offer set for human and computer partners: five $5:$5, one $7:$3, two $8:$2, two $9:$1.
+  // Offers below are "amount offered to the responder".
+  const OFFER_SET = [5,5,5,5,5,3,2,2,1,1];
+  // Approximate acceptance rates from Fig. 1B (percent).
+  const PAPER = { human:{5:100,3:95,2:53,1:40}, computer:{5:100,3:95,2:84,1:67} };
+
+  const PARTNERS = [
+    {name:"Kelly", color:"#6d5a8a"}, {name:"Marcus", color:"#2e6f73"}, {name:"Priya", color:"#9b4d5f"},
+    {name:"Daniel", color:"#4a6b2f"}, {name:"Sofia", color:"#a0662a"}, {name:"James", color:"#3c5a8f"},
+    {name:"Aisha", color:"#7a4a2a"}, {name:"Tom", color:"#5e5e8a"}, {name:"Elena", color:"#2f6a52"},
+    {name:"Ryan", color:"#8a5a3c"}
+  ];
+
+  const TIMING = {
+    class:   { fix:900,  partner:1500, offer:1500, outcome:1600 },
+    scanner: { fix:12000, partner:6000, offer:6000, outcome:6000 }
+  };
+
+  const $ = id => document.getElementById(id);
+  const initials = n => n.slice(0,1);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const shuffle = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+  // Partner grid
+  $("partnerGrid").innerHTML = PARTNERS.map(p =>
+    `<div class="partner"><div class="avatar" style="background:${p.color}">${initials(p.name)}</div>${p.name}</div>`).join("");
+
+  // ---------- Icons ----------
+  const computerSVG = `<svg width="120" height="120" viewBox="0 0 120 120" aria-label="Computer"><rect x="14" y="20" width="92" height="62" rx="6" fill="#2a2a2a" stroke="#c0692b" stroke-width="4"/><rect x="24" y="30" width="72" height="42" rx="2" fill="#c0692b" opacity=".25"/><rect x="50" y="84" width="20" height="12" fill="#c0692b"/><rect x="34" y="96" width="52" height="6" rx="3" fill="#c0692b"/></svg>`;
+  const wheelSVG = (() => {
+    let s = `<svg class="wheel" width="120" height="120" viewBox="-60 -60 120 120" aria-label="Roulette wheel">`;
+    const n=12;
+    for (let i=0;i<n;i++){
+      const a0=i/n*2*Math.PI, a1=(i+1)/n*2*Math.PI;
+      const x0=55*Math.cos(a0), y0=55*Math.sin(a0), x1=55*Math.cos(a1), y1=55*Math.sin(a1);
+      s += `<path d="M0 0 L${x0} ${y0} A55 55 0 0 1 ${x1} ${y1} Z" fill="${i%2?'#5b7d4a':'#2a2a2a'}" stroke="#111" stroke-width="1"/>`;
+    }
+    return s + `<circle r="10" fill="#ddd"/></svg>`;
+  })();
+
+  // ---------- Build trial list ----------
+  function buildTrials(){
+    const humanOffers = shuffle(OFFER_SET);
+    const partners = shuffle(PARTNERS);
+    const human = partners.map((p,i) => ({type:"human", partner:p.name, color:p.color, offer:humanOffers[i]}));
+    const computer = shuffle(OFFER_SET).map(o => ({type:"computer", partner:"Computer", offer:o}));
+    return shuffle([...human, ...computer]).map((t,i) => ({...t, trial:i+1}));
+  }
+
+  // ---------- State ----------
+  let trials = [], timing, earnings = 0, waitingKey = null;
+
+  document.addEventListener("keydown", e => {
+    if (!waitingKey) return;
+    const k = e.key.toLowerCase();
+    if (k === "f") waitingKey("accept");
+    else if (k === "j" && waitingKey.allowReject) waitingKey("reject");
+  });
+
+  function stageHTML(t, body, phase){
+    $("stage").innerHTML =
+      `<div class="bar"><span>Round ${t.trial} of ${trials.length}</span><span>Earnings: $${earnings}</span></div>
+       ${body}<div class="phase">${phase||""}</div>`;
+  }
+
+  function partnerBlock(t, size){
+    if (t.type === "human")
+      return `<div class="avatar ${size||''}" style="background:${t.color}">${initials(t.partner)}</div>`;
+    if (t.type === "computer") return computerSVG;
+    return wheelSVG;
+  }
+  function tagFor(t){
+    const map = {human:["Human partner","var(--human)"], computer:["Computer partner","var(--computer)"], control:["Control: roulette","var(--control)"]};
+    const [txt,c] = map[t.type];
+    return `<span class="tag" style="background:${c};color:#fff">${txt}</span>`;
+  }
+  function offerBlock(t){
+    const them = 10 - t.offer;
+    if (t.type === "control")
+      return `<div class="offer"><div>You get<strong>$${t.offer}</strong></div></div>`;
+    const who = t.type === "human" ? t.partner : "Computer";
+    return `<div class="offer"><div>${who} gets<strong>$${them}</strong></div><div>You get<strong>$${t.offer}</strong></div></div>`;
+  }
+
+  async function runTrial(t){
+    // 1. Fixation
+    stageHTML(t, `<div class="fix">+</div>`, "Get ready");
+    await sleep(timing.fix);
+    // 2. Reveal partner
+    const label = t.type === "human" ? t.partner : (t.type === "computer" ? "Computer" : "Roulette wheel");
+    stageHTML(t, `${tagFor(t)}${partnerBlock(t,"big-avatar")}<h2 style="margin-top:10px">${label}</h2>`, "Reveal partner");
+    await sleep(timing.partner);
+    // 2b. Human partners "think" for a variable time (2–6 s); the computer answers instantly.
+    if (t.type === "human") {
+      stageHTML(t, `${tagFor(t)}${partnerBlock(t,"big-avatar")}<h2 style="margin-top:10px">Waiting for ${t.partner}'s offer<span class="dots"></span></h2>
+        <p class="small" style="color:#999">${t.partner} is deciding how to split the $10…</p>`, "Waiting for partner");
+      await sleep(2000 + Math.random()*4000);
+    }
+    // 3. Reveal offer
+    const header = `${tagFor(t)}<div style="transform:scale(.6);margin:-20px 0 -24px">${partnerBlock(t,"big-avatar")}</div>`;
+    stageHTML(t, `${header}${offerBlock(t)}`, "Reveal offer");
+    await sleep(timing.offer);
+    // 4. Options + decision
+    const isCtl = t.type === "control";
+    const btns = isCtl
+      ? `<div class="choices"><button class="col" data-c="accept">Collect $${t.offer}</button></div><div class="keys">Press the button (or F)</div>`
+      : `<div class="choices"><button class="acc" data-c="accept">Accept</button><button class="rej" data-c="reject">Reject</button></div><div class="keys">F = Accept · J = Reject</div>`;
+    stageHTML(t, `${header}${offerBlock(t)}${btns}`, "Decide");
+    const t0 = performance.now();
+    const choice = await new Promise(res => {
+      const done = c => { waitingKey = null; res(c); };
+      done.allowReject = !isCtl;
+      waitingKey = done;
+      $("stage").querySelectorAll("button[data-c]").forEach(b => b.onclick = () => done(b.dataset.c));
+    });
+    t.rt = Math.round(performance.now() - t0);
+    t.choice = choice;
+    t.you = choice === "accept" ? t.offer : 0;
+    t.them = (choice === "accept" && !isCtl) ? 10 - t.offer : 0;
+    earnings += t.you;
+    // 5. Outcome
+    let out;
+    if (isCtl) out = `<div class="outcome">You receive<br><strong>$${t.offer}</strong></div>`;
+    else {
+      const who = t.type === "human" ? t.partner : "Computer";
+      out = `<div class="outcome"><div style="color:${choice==='accept'?'#7fd19b':'#ef8a8a'};font-weight:600;margin-bottom:8px">${choice==='accept'?'Accepted':'Rejected'}</div>
+             <div class="offer"><div>${who} gets<strong>$${t.them}</strong></div><div>You get<strong>$${t.you}</strong></div></div></div>`;
+    }
+    stageHTML(t, `${tagFor(t)}${out}`, "Outcome");
+    await sleep(timing.outcome);
+  }
+
+  async function runGame(){
+    $("intro").classList.add("hidden");
+    $("game").classList.remove("hidden");
+    window.scrollTo(0,0);
+    for (const t of trials) await runTrial(t);
+    $("game").classList.add("hidden");
+    showResults();
+  }
+
+  $("startBtn").onclick = () => {
+    timing = TIMING[document.querySelector('input[name=timing]:checked').value];
+    trials = buildTrials();
+    earnings = 0;
+    runGame();
+  };
+
+  // ---------- Results ----------
+  function rate(type, offer){
+    const ts = trials.filter(t => t.type===type && t.offer===offer);
+    if (!ts.length) return null;
+    return Math.round(100 * ts.filter(t=>t.choice==="accept").length / ts.length);
+  }
+  function mean(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
+
+  function chartSVG(){
+    const offers = [5,3,2,1], labels = {5:"$5:$5",3:"$7:$3",2:"$8:$2",1:"$9:$1"};
+    const W=760,H=320,pl=46,pr=10,pt=14,pb=44, iw=W-pl-pr, ih=H-pt-pb;
+    const gw = iw/offers.length, bw = Math.min(30, gw/5.6);
+    const y = v => pt + ih - ih*v/100;
+    let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Acceptance rate by offer">`;
+    for (let v=0; v<=100; v+=25){
+      s += `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="#e8e4dc"/>`;
+      s += `<text x="${pl-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#6b6b70">${v}%</text>`;
+    }
+    const series = [
+      {k:"human", you:true, c:"#1f4e79"}, {k:"computer", you:true, c:"#c0692b"},
+      {k:"human", you:false, c:"#1f4e79"}, {k:"computer", you:false, c:"#c0692b"}
+    ];
+    offers.forEach((o,gi) => {
+      const gx = pl + gi*gw + (gw - bw*4 - 6*3)/2;
+      series.forEach((ser,si) => {
+        const v = ser.you ? rate(ser.k,o) : PAPER[ser.k][o];
+        const x = gx + si*(bw+6);
+        const h = ih*v/100;
+        const tip = `${ser.you?"You":"Paper"} · ${ser.k} · ${labels[o]}: ${v}%`;
+        if (ser.you) s += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${Math.max(h,1)}" rx="3" fill="${ser.c}"><title>${tip}</title></rect>`;
+        else s += `<rect x="${x+1}" y="${y(v)+1}" width="${bw-2}" height="${Math.max(h-2,1)}" rx="3" fill="#fff" stroke="${ser.c}" stroke-width="2"><title>${tip}</title></rect>`;
+        s += `<text x="${x+bw/2}" y="${y(v)-4}" text-anchor="middle" font-size="10" fill="#6b6b70">${v}</text>`;
+      });
+      s += `<text x="${pl + gi*gw + gw/2}" y="${H-20}" text-anchor="middle" font-size="13" fill="#1d1d1f" font-weight="600">${labels[o]}</text>`;
+    });
+    s += `<text x="${pl+iw/2}" y="${H-3}" text-anchor="middle" font-size="11" fill="#6b6b70">Offer (proposer : you)</text>`;
+    return s + `</svg>`;
+  }
+
+  function showResults(){
+    $("results").classList.remove("hidden");
+    window.scrollTo(0,0);
+
+    const unfair = t => t.offer < 5 && t.type !== "control";
+    const rejHuman = trials.filter(t=>t.type==="human" && unfair(t) && t.choice==="reject").length;
+    const rejComp  = trials.filter(t=>t.type==="computer" && unfair(t) && t.choice==="reject").length;
+    const forgone = trials.filter(t=>t.choice==="reject").reduce((a,t)=>a+t.offer,0);
+    const maxEarn = trials.reduce((a,t)=>a+t.offer,0);
+
+    $("statTiles").innerHTML = [
+      [`$${earnings}`, `Earned (of $${maxEarn} possible)`],
+      [`$${forgone}`, `Given up by rejecting`],
+      [`${rejHuman} / 5`, `Unfair human offers rejected`],
+      [`${rejComp} / 5`, `Unfair computer offers rejected`]
+    ].map(([v,l]) => `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+
+    $("chart").innerHTML = chartSVG();
+
+    const offers=[5,3,2,1], labels={5:"$5:$5 (fair)",3:"$7:$3",2:"$8:$2",1:"$9:$1"};
+    const rtFor = (type, cond) => { const m = mean(trials.filter(t=>t.type===type && cond(t)).map(t=>t.rt)); return m==null?"—":Math.round(m)+" ms"; };
+    let tb = `<table><thead><tr><th>Offer</th><th>You · human</th><th>Paper · human</th><th>You · computer</th><th>Paper · computer</th></tr></thead><tbody>`;
+    offers.forEach(o => {
+      tb += `<tr><td>${labels[o]}</td><td>${rate("human",o)}%</td><td class="muted">~${PAPER.human[o]}%</td><td>${rate("computer",o)}%</td><td class="muted">~${PAPER.computer[o]}%</td></tr>`;
+    });
+    tb += `</tbody></table>
+      <p class="small muted" style="margin-top:10px">Mean decision time — fair offers: human ${rtFor("human",t=>t.offer===5)}, computer ${rtFor("computer",t=>t.offer===5)} · unfair offers: human ${rtFor("human",t=>t.offer<5)}, computer ${rtFor("computer",t=>t.offer<5)}</p>
+      <p class="small muted">With one or two trials per unfair offer type, your individual percentages are coarse (0, 50 or 100%).</p>`;
+    $("resTable").innerHTML = tb;
+  }
+  $("againBtn").onclick = () => {
+    $("results").classList.add("hidden");
+    $("intro").classList.remove("hidden");
+    window.scrollTo(0,0);
+  };
+})();
+</script>
+</body>
+</html>
