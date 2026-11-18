@@ -1,4 +1,4 @@
-"""Plot class Ultimatum Game results in the style of Sanfey et al. (2003), Fig. 1B.
+"""Plot class Ultimatum Game results: acceptance rate by offer, human vs. computer partners.
 
 Input: JSON from the Firestore REST list endpoint for the `ultimatum` collection.
 Usage: python plot_class.py docs.json out.png [--all-plays]
@@ -11,7 +11,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 OFFERS = [("o55", r"\$5:\$5"), ("o73", r"\$7:\$3"), ("o82", r"\$8:\$2"), ("o91", r"\$9:\$1")]
-PAPER = {"human": [100, 95, 53, 40], "computer": [100, 95, 84, 67]}  # approx., read from Fig. 1B
 
 
 def load(path, all_plays=False):
@@ -39,14 +38,10 @@ def main():
     hse = H.std(0, ddof=1) / np.sqrt(n) if n > 1 else np.zeros(4)
     cse = C.std(0, ddof=1) / np.sqrt(n) if n > 1 else np.zeros(4)
 
-    fig, ax = plt.subplots(figsize=(7.6, 4.6), dpi=200)
+    fig, ax = plt.subplots(figsize=(7.0, 4.6), dpi=200)
     x = np.arange(4); w = 0.36
     ax.bar(x - w/2, hm, w, yerr=hse, color="black", edgecolor="black", capsize=3, label="Human", error_kw=dict(lw=1))
     ax.bar(x + w/2, cm, w, yerr=cse, color="white", edgecolor="black", capsize=3, label="Computer", error_kw=dict(lw=1))
-    # Paper values as small markers for comparison
-    ax.scatter(x - w/2, PAPER["human"], marker="_", s=260, color="#c0392b", zorder=5, linewidths=2.2)
-    ax.scatter(x + w/2, PAPER["computer"], marker="_", s=260, color="#c0392b", zorder=5, linewidths=2.2,
-               label="Sanfey et al. 2003 (approx.)")
     ax.set_xticks(x, [lab for _, lab in OFFERS], fontweight="bold")
     ax.set_xlabel("Offer", fontweight="bold")
     ax.set_ylabel("Acceptance rates", fontweight="bold")
@@ -59,9 +54,9 @@ def main():
     fig.savefig(out)
 
     print(f"n = {n}")
-    print("offer   human   computer   (paper human / computer)")
+    print("offer   human   computer")
     for i, (_, lab) in enumerate(OFFERS):
-        print(f"{lab.replace(chr(92), ''):6} {hm[i]:6.1f}   {cm[i]:6.1f}      ({PAPER['human'][i]} / {PAPER['computer'][i]})")
+        print(f"{lab.replace(chr(92), ''):6} {hm[i]:6.1f}   {cm[i]:6.1f}")
     if n > 1:
         # Paired comparison on the unfair offers ($8:$2 and $9:$1), mean per student
         diff = C[:, 2:].mean(1) - H[:, 2:].mean(1)

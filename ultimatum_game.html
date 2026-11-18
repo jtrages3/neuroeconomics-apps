@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ultimatum Game — Sanfey et al. (2003) Replication</title>
+<title>Ultimatum Game</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#f6f4ef; --card:#ffffff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e2ded5;
     --human:#1f4e79; --computer:#c0692b; --control:#5b7d4a; --accept:#2f7d4f; --reject:#b23a3a;
-    --paper:#9a9a9a;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.5}
@@ -88,7 +87,6 @@
 <section id="intro">
   <div class="eyebrow">Neuroeconomics · In-class experiment</div>
   <h1>The Ultimatum Game</h1>
-  <p class="muted">Based on Sanfey, Rilling, Aronson, Nystrom &amp; Cohen (2003), <em>Science</em> 300:1755–1758.</p>
 
   <div class="card">
     <h2>How the game works</h2>
@@ -146,9 +144,8 @@
 
 <script>
 (() => {
-  // ---------- Design from Sanfey et al. 2003 ----------
-  // Same offer set for human and computer partners: five $5:$5, one $7:$3, two $8:$2, two $9:$1.
-  // Offers below are "amount offered to the responder".
+  // ---------- Offers ----------
+  // Amount offered to the responder (out of $10).
   const OFFER_SET = [5,5,5,5,5,3,2,2,1,1];
 
   const PARTNERS = [
@@ -234,7 +231,7 @@
     const label = t.type === "human" ? t.partner : (t.type === "computer" ? "Computer" : "Roulette wheel");
     stageHTML(t, `${tagFor(t)}${partnerBlock(t,"big-avatar")}<h2 style="margin-top:10px">${label}</h2>`, "Reveal partner");
     await sleep(timing.partner);
-    // 2b. Human partners "think" for a variable time (2–6 s); the computer answers instantly.
+    // 2b. Wait for partner's offer
     if (t.type === "human") {
       stageHTML(t, `${tagFor(t)}${partnerBlock(t,"big-avatar")}<h2 style="margin-top:10px">Waiting for ${t.partner}'s offer<span class="dots"></span></h2>
         <p class="small" style="color:#999">${t.partner} is deciding how to split the $10…</p>`, "Waiting for partner");
